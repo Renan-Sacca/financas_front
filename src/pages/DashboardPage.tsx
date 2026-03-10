@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { summaryApi, transactionsApi, banksApi, categoriesApi, cardsApi } from "@/services/api";
-import type { FinancialSummary, Bank, Category, Card } from "@/types";
+import type { FinancialSummary, Bank } from "@/types";
 import {
   BarChart,
   Bar,
@@ -41,6 +41,16 @@ function formatBRL(value: number) {
   });
 }
 
+const selectClass =
+  "bg-[#0d1b2a] border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none";
+
+const tooltipStyle = {
+  background: "rgba(5,10,20,0.95)",
+  border: "1px solid rgba(255,255,255,0.15)",
+  borderRadius: 12,
+  color: "#fff",
+};
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
   const [monthlyData, setMonthlyData] = useState<
@@ -53,8 +63,6 @@ export default function DashboardPage() {
     { name: string; value: number; color: string }[]
   >([]);
   const [banks, setBanks] = useState<Bank[]>([]);
-  const [, setCategories] = useState<Category[]>([]);
-  const [, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -64,16 +72,20 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [summaryData, banksList, catList, cardsList] = await Promise.all([
+      const [summaryData, banksList] = await Promise.all([
         summaryApi.get(),
         banksApi.list(),
-        categoriesApi.list(),
-        cardsApi.list(),
       ]);
       setSummary(summaryData);
       setBanks(banksList);
-      setCategories(catList);
-      setCards(cardsList);
+
+      // Load extra data for charts
+      try {
+        await categoriesApi.list();
+      } catch { /* ok */ }
+      try {
+        await cardsApi.list();
+      } catch { /* ok */ }
 
       // Load transactions for charts
       const params: Record<string, string> = {};
@@ -114,7 +126,7 @@ export default function DashboardPage() {
       const catMap: Record<string, { value: number; color: string }> = {};
       transactions.forEach((t) => {
         const catName = t.category_name || "Sem categoria";
-        const catColor = t.category_color || "#6b7280";
+        const catColor = t.category_color || CHART_COLORS[Object.keys(catMap).length % CHART_COLORS.length];
         if (!catMap[catName]) catMap[catName] = { value: 0, color: catColor };
         catMap[catName].value += t.amount;
       });
@@ -159,6 +171,13 @@ export default function DashboardPage() {
     (_, i) => new Date().getFullYear() - i,
   );
 
+  // Flatten all credit cards from summary for credit limit section
+  const creditCards = (summary?.banks ?? []).flatMap((bank) =>
+    (bank.cards ?? [])
+      .filter((c) => c.type === "credit")
+      .map((card) => ({ ...card, bankName: bank.name })),
+  );
+
   return (
     <div className="space-y-8">
       <div>
@@ -197,7 +216,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Filters + Monthly Chart */}
-      <div className="glass-panel rounded-2xl p-6">
+      <div className="glass-panel rounded-2xl p-6" style={{ overflow: "visible" }}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-heading text-xl font-medium text-white flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-[#007bff]" />
@@ -210,11 +229,11 @@ export default function DashboardPage() {
           <select
             value={filterBank}
             onChange={(e) => setFilterBank(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none"
+            className={selectClass}
           >
-            <option value="">Todos os bancos</option>
+            <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os bancos</option>
             {banks.map((b) => (
-              <option key={b.id} value={b.id}>
+              <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>
                 {b.name}
               </option>
             ))}
@@ -222,11 +241,11 @@ export default function DashboardPage() {
           <select
             value={filterYear}
             onChange={(e) => setFilterYear(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none"
+            className={selectClass}
           >
-            <option value="">Todos os anos</option>
+            <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os anos</option>
             {years.map((y) => (
-              <option key={y} value={y}>
+              <option key={y} value={y} style={{ background: "#0d1b2a", color: "white" }}>
                 {y}
               </option>
             ))}
@@ -234,11 +253,11 @@ export default function DashboardPage() {
           <select
             value={filterMonth}
             onChange={(e) => setFilterMonth(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none"
+            className={selectClass}
           >
-            <option value="">Todos os meses</option>
+            <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os meses</option>
             {months.map((m, i) => (
-              <option key={i} value={i + 1}>
+              <option key={i} value={i + 1} style={{ background: "#0d1b2a", color: "white" }}>
                 {m}
               </option>
             ))}
@@ -251,23 +270,19 @@ export default function DashboardPage() {
           </GlassButton>
         </div>
 
-        <div className="h-[350px]">
-          {loading ? (
-            <div className="h-full flex items-center justify-center">
-              <span className="w-8 h-8 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : monthlyData.length ? (
-            <ResponsiveContainer width="100%" height="100%">
+        {loading ? (
+          <div className="h-[350px] flex items-center justify-center">
+            <span className="w-8 h-8 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : monthlyData.length ? (
+          <div style={{ width: "100%", height: 350, overflow: "visible" }}>
+            <ResponsiveContainer width="99%" height={350}>
               <BarChart data={monthlyData}>
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" />
                 <YAxis stroke="rgba(255,255,255,0.3)" />
                 <Tooltip
-                  contentStyle={{
-                    background: "rgba(5,10,20,0.95)",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    borderRadius: 12,
-                    color: "#fff",
-                  }}
+                  cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                  contentStyle={tooltipStyle}
                   formatter={(value) => [formatBRL(Number(value)), "Total"]}
                 />
                 <Bar
@@ -278,26 +293,26 @@ export default function DashboardPage() {
                 />
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-500">
-              <DollarSign className="w-8 h-8 mr-2 opacity-30" />
-              Nenhuma transação encontrada
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="h-[350px] flex items-center justify-center text-gray-500">
+            <DollarSign className="w-8 h-8 mr-2 opacity-30" />
+            Nenhuma transação encontrada
+          </div>
+        )}
       </div>
 
       {/* Pie Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* By Card */}
-        <div className="glass-panel rounded-2xl p-6">
+        <div className="glass-panel rounded-2xl p-6" style={{ overflow: "visible" }}>
           <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
             <CreditCard className="w-5 h-5 text-[#007bff]" />
             Gastos por Cartão
           </h3>
-          <div className="h-[300px]">
-            {cardPieData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
+          {cardPieData.length ? (
+            <div style={{ width: "100%", height: 300, overflow: "visible" }}>
+              <ResponsiveContainer width="99%" height={300}>
                 <PieChart>
                   <Pie
                     data={cardPieData}
@@ -305,10 +320,11 @@ export default function DashboardPage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
+                    outerRadius={90}
                     label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ''} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                      `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`
                     }
+                    labelLine={{ stroke: "rgba(255,255,255,0.3)" }}
                   >
                     {cardPieData.map((_, i) => (
                       <Cell
@@ -318,34 +334,31 @@ export default function DashboardPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{
-                      background: "rgba(5,10,20,0.95)",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      borderRadius: 12,
-                      color: "#fff",
-                    }}
+                    contentStyle={tooltipStyle}
                     formatter={(value) => formatBRL(Number(value))}
                   />
-                  <Legend />
+                  <Legend
+                    wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500">
-                Sem dados
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Sem dados de cartões
+            </div>
+          )}
         </div>
 
         {/* By Category */}
-        <div className="glass-panel rounded-2xl p-6">
+        <div className="glass-panel rounded-2xl p-6" style={{ overflow: "visible" }}>
           <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-[#007bff]" />
             Gastos por Categoria
           </h3>
-          <div className="h-[300px]">
-            {categoryPieData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
+          {categoryPieData.length ? (
+            <div style={{ width: "100%", height: 300, overflow: "visible" }}>
+              <ResponsiveContainer width="99%" height={300}>
                 <PieChart>
                   <Pie
                     data={categoryPieData}
@@ -353,10 +366,11 @@ export default function DashboardPage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={100}
+                    outerRadius={90}
                     label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ''} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                      `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`
                     }
+                    labelLine={{ stroke: "rgba(255,255,255,0.3)" }}
                   >
                     {categoryPieData.map((entry, i) => (
                       <Cell
@@ -366,68 +380,65 @@ export default function DashboardPage() {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{
-                      background: "rgba(5,10,20,0.95)",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      borderRadius: 12,
-                      color: "#fff",
-                    }}
+                    contentStyle={tooltipStyle}
                     formatter={(value) => formatBRL(Number(value))}
                   />
-                  <Legend />
+                  <Legend
+                    wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-gray-500">
-                Sem dados
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">
+              Sem dados de categorias
+            </div>
+          )}
         </div>
       </div>
 
       {/* Credit Limit per Bank */}
-      {summary?.banks && summary.banks.length > 0 && (
-        <div className="glass-panel rounded-2xl p-6">
-          <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-[#007bff]" />
-            Limite de Crédito por Banco
-          </h3>
+      <div className="glass-panel rounded-2xl p-6">
+        <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-[#007bff]" />
+          Limite de Crédito por Banco
+        </h3>
+        {creditCards.length > 0 ? (
           <div className="space-y-4">
-            {summary.banks.map((bank) =>
-              bank.cards
-                .filter((c) => c.type === "credit")
-                .map((card) => {
-                  const used = card.used_amount ?? 0;
-                  const limit = card.limit_amount ?? 1;
-                  const pct = Math.min((used / limit) * 100, 100);
-                  return (
-                    <div key={card.id} className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/80">
-                          {bank.name} — {card.name}
-                        </span>
-                        <span className="text-white/60">
-                          {formatBRL(used)} / {formatBRL(limit)}
-                        </span>
-                      </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-700 ${
-                            pct > 80
-                              ? "bg-gradient-to-r from-red-500 to-orange-500"
-                              : "bg-gradient-to-r from-[#007bff] to-cyan-400"
-                          }`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                }),
-            )}
+            {creditCards.map((card) => {
+              const used = card.used_amount ?? 0;
+              const limit = card.limit_amount ?? 1;
+              const pct = Math.min((used / limit) * 100, 100);
+              return (
+                <div key={card.id} className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/80">
+                      {card.bankName} — {card.name}
+                    </span>
+                    <span className="text-white/60">
+                      {formatBRL(used)} / {formatBRL(limit)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        pct > 80
+                          ? "bg-gradient-to-r from-red-500 to-orange-500"
+                          : "bg-gradient-to-r from-[#007bff] to-cyan-400"
+                      }`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center text-gray-500 py-8">
+            Nenhum cartão de crédito encontrado
+          </div>
+        )}
+      </div>
     </div>
   );
 }
