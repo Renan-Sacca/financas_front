@@ -1,0 +1,258 @@
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
+
+async function fetchApi<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const token = localStorage.getItem("token");
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+    throw new Error("Sessão expirada");
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      error.detail || `Erro ${response.status}: ${response.statusText}`,
+    );
+  }
+
+  if (response.status === 204) return {} as T;
+  return response.json();
+}
+
+// ──── AUTH ────
+export const authApi = {
+  login: (email: string, password: string) =>
+    fetchApi<{ access_token: string }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  register: (data: {
+    full_name: string;
+    email: string;
+    telefone: string;
+    password: string;
+  }) =>
+    fetchApi<{ message: string }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  forgotPassword: (email: string) =>
+    fetchApi<{ message: string }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  getProfile: () =>
+    fetchApi<import("@/types").User>("/auth/me"),
+
+  updateProfile: (data: Partial<import("@/types").User>) =>
+    fetchApi<import("@/types").User>("/auth/me", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  refreshToken: () =>
+    fetchApi<{ access_token: string }>("/auth/refresh-token", {
+      method: "POST",
+    }),
+};
+
+// ──── BANKS ────
+export const banksApi = {
+  list: () =>
+    fetchApi<import("@/types").Bank[]>("/banks/"),
+
+  create: (data: { name: string; current_balance: number }) =>
+    fetchApi<import("@/types").Bank>("/banks/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: { name: string; current_balance: number }) =>
+    fetchApi<import("@/types").Bank>(`/banks/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/banks/${id}`, { method: "DELETE" }),
+};
+
+// ──── CARDS ────
+export const cardsApi = {
+  list: () =>
+    fetchApi<import("@/types").Card[]>("/cards/"),
+
+  create: (
+    bankId: number,
+    data: {
+      name: string;
+      type: string;
+      limit_amount?: number;
+      due_day?: number;
+    },
+  ) =>
+    fetchApi<import("@/types").Card>(`/banks/${bankId}/cards`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: number,
+    data: {
+      bank_id: number;
+      name: string;
+      type: string;
+      limit_amount?: number | null;
+      due_day?: number | null;
+    },
+  ) =>
+    fetchApi<import("@/types").Card>(`/cards/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/cards/${id}`, { method: "DELETE" }),
+};
+
+// ──── CATEGORIES ────
+export const categoriesApi = {
+  list: () =>
+    fetchApi<import("@/types").Category[]>("/categories/"),
+
+  create: (data: { name: string; color: string }) =>
+    fetchApi<import("@/types").Category>("/categories/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: number, data: { name: string; color: string }) =>
+    fetchApi<import("@/types").Category>(`/categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/categories/${id}`, { method: "DELETE" }),
+};
+
+// ──── TRANSACTIONS ────
+export const transactionsApi = {
+  list: (params?: Record<string, string>) => {
+    const query = params
+      ? "?" + new URLSearchParams(params).toString()
+      : "";
+    return fetchApi<import("@/types").Transaction[]>(
+      `/transactions/${query}`,
+    );
+  },
+
+  create: (data: {
+    card_id: number;
+    amount: number;
+    type: string;
+    description: string;
+    date: string;
+    total_installments?: number;
+    category_id?: number | null;
+  }) =>
+    fetchApi<import("@/types").Transaction>("/transactions/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: number,
+    data: {
+      card_id: number;
+      amount: number;
+      description: string;
+      date: string;
+      category_id?: number | null;
+      total_installments?: number;
+    },
+  ) =>
+    fetchApi<import("@/types").Transaction>(`/transactions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/transactions/${id}`, { method: "DELETE" }),
+
+  updateStatus: (id: number, isPaid: boolean) =>
+    fetchApi<import("@/types").Transaction>(`/transactions/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_paid: isPaid }),
+    }),
+
+  markPreviousAsPaid: () =>
+    fetchApi<{ updated: number }>("/transactions/mark-previous-paid", {
+      method: "POST",
+    }),
+};
+
+// ──── DEPOSITS ────
+export const depositsApi = {
+  list: (params?: Record<string, string>) => {
+    const query = params
+      ? "?" + new URLSearchParams(params).toString()
+      : "";
+    return fetchApi<import("@/types").Deposit[]>(`/deposits/${query}`);
+  },
+
+  create: (data: {
+    bank_id: number;
+    amount: number;
+    description: string;
+    date: string;
+  }) =>
+    fetchApi<import("@/types").Deposit>("/deposits/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: number,
+    data: {
+      bank_id: number;
+      amount: number;
+      description: string;
+      date: string;
+    },
+  ) =>
+    fetchApi<import("@/types").Deposit>(`/deposits/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/deposits/${id}`, { method: "DELETE" }),
+};
+
+// ──── SUMMARY ────
+export const summaryApi = {
+  get: () =>
+    fetchApi<import("@/types").FinancialSummary>("/summary/"),
+};
