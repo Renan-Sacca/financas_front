@@ -3,6 +3,7 @@ import { banksApi } from "@/services/api";
 import type { Bank } from "@/types";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import { Building2, Plus, Pencil, Trash2, DollarSign } from "lucide-react";
@@ -15,6 +16,10 @@ export default function BanksPage() {
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const { showSuccess, showError } = useToast();
 
   const load = async () => {
@@ -66,14 +71,22 @@ export default function BanksPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Tem certeza que deseja excluir este banco?")) return;
+  const handleDelete = (id: number) => {
+    setDeleteConfirm(id);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
     try {
-      await banksApi.delete(id);
+      await banksApi.delete(deleteConfirm);
       showSuccess("Banco excluído!");
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro ao excluir banco");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
     }
   };
 
@@ -179,6 +192,15 @@ export default function BanksPage() {
           onChange={(e) => setBalance(e.target.value)}
         />
       </GlassModal>
+
+      <ConfirmModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={executeDelete}
+        loading={deleting}
+        title="Excluir Banco"
+        message="Tem certeza que deseja excluir este banco?"
+      />
     </div>
   );
 }

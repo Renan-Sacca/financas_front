@@ -3,6 +3,7 @@ import { transactionsApi, cardsApi, banksApi, categoriesApi } from "@/services/a
 import type { Transaction, Card, Bank, Category } from "@/types";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import {
@@ -14,6 +15,8 @@ import {
   Clock,
   Filter,
   CheckCheck,
+  Link,
+  Layers,
 } from "lucide-react";
 
 const formatBRL = (v: number) =>
@@ -48,7 +51,11 @@ export default function TransactionsPage() {
     description: "",
     date: new Date().toISOString().split("T")[0],
   });
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id?: number; groupId?: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -95,6 +102,7 @@ export default function TransactionsPage() {
 
   const openCreate = () => {
     setEditing(null);
+    setEditingGroup(null);
     setForm({
       card_id: cards[0]?.id?.toString() || "",
       amount: "",
@@ -108,6 +116,7 @@ export default function TransactionsPage() {
 
   const openEdit = (t: Transaction) => {
     setEditing(t);
+    setEditingGroup(null);
     setForm({
       card_id: String(t.card_id),
       amount: String(t.amount),
@@ -126,13 +135,19 @@ export default function TransactionsPage() {
       const selectedCard = cards.find((c) => String(c.id) === form.card_id);
       const isCredit = selectedCard?.type === "credit";
       
-      if (editing) {
-        if (editing.installment_group_id) {
-          showError("Para editar parcelas, exclua o cartão e refaça a compra (não suportado na UI atual, como na antiga).");
-          setSaving(false);
-          return;
-        }
-
+      if (editingGroup) {
+        const data = {
+          group_id: editingGroup,
+          card_id: parseInt(form.card_id),
+          total_amount: parseFloat(form.amount),
+          description: form.description,
+          date: form.date,
+          category_id: form.category_id ? parseInt(form.category_id) : null,
+          installments: parsedInstallments,
+        };
+        await transactionsApi.updateGroup(data);
+        showSuccess("Compra parcelada atualizada!");
+      } else if (editing) {
         const data = {
           card_id: parseInt(form.card_id),
           amount: parseFloat(form.amount),
@@ -207,21 +222,57 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir esta compra?")) return;
+  const handleDelete = (id: number) => {
+    setDeleteConfirm({ id });
+  };
+
+  const handleDeleteGroup = (groupId: string) => {
+    setDeleteConfirm({ groupId });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
     try {
-      await transactionsApi.delete(id);
-      showSuccess("Compra excluída!");
+      if (deleteConfirm.id) {
+        await transactionsApi.delete(deleteConfirm.id);
+        showSuccess("Compra excluída!");
+      } else if (deleteConfirm.groupId) {
+        await transactionsApi.deleteGroup(deleteConfirm.groupId);
+        showSuccess("Grupo de parcelas excluído!");
+      }
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
     }
+  };
+
+  const openEditGroup = (t: Transaction) => {
+    if (!t.group_id) return;
+    const groupTransactions = transactions.filter((tx) => tx.group_id === t.group_id);
+    const firstTx = groupTransactions[0] || t;
+    const totalAmount = groupTransactions.reduce((acc, tx) => acc + tx.amount, 0);
+
+    setEditing(null);
+    setEditingGroup(t.group_id);
+    setForm({
+      card_id: String(firstTx.card_id),
+      amount: String(totalAmount),
+      installments: String(firstTx.total_installments ?? 1),
+      category_id: firstTx.category_id ? String(firstTx.category_id) : "",
+      description: firstTx.description.replace(/ \(\d+\/\d+\)$/, ""),
+      date: firstTx.purchase_date || firstTx.date,
+    });
+    setModalOpen(true);
   };
 
   const toggleStatus = async (t: Transaction) => {
     try {
-      await transactionsApi.updateStatus(t.id, !t.is_paid);
-      showSuccess(t.is_paid ? "Marcada como pendente" : "Marcada como paga");
+      await transactionsApi.updateStatus(t.id);
+      showSuccess("Status alterado com sucesso!");
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -247,7 +298,7 @@ export default function TransactionsPage() {
     try {
       await Promise.all(
         Array.from(selected).map((id) =>
-          transactionsApi.updateStatus(id, isPaid),
+          transactionsApi.updateStatus(id),
         ),
       );
       showSuccess(
@@ -479,15 +530,42 @@ export default function TransactionsPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">
+                        {t.group_id && (
+                          <button
+                            onClick={() => openEditGroup(t)}
+                            title="Editar Grupo"
+                            className="p-1.5 rounded text-blue-400 hover:bg-blue-400/10 transition-colors border border-transparent hover:border-blue-400/20"
+                          >
+                            <Link className="w-3.5 h-3.5 origin-center -rotate-45" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEdit(t)}
-                          className="p-1.5 text-white/30 hover:text-[#007bff] transition-colors"
+                          title="Editar"
+                          className="p-1.5 rounded text-[#007bff] hover:bg-[#007bff]/10 transition-colors border border-transparent hover:border-[#007bff]/20"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          onClick={() => toggleStatus(t)}
+                          title="Alterar Status"
+                          className="p-1.5 rounded text-emerald-500 hover:bg-emerald-500/10 transition-colors border border-transparent hover:border-emerald-500/20"
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </button>
+                        {t.group_id && (
+                          <button
+                            onClick={() => handleDeleteGroup(t.group_id!)}
+                            title="Excluir Todas Parcelas"
+                            className="p-1.5 rounded text-amber-500 hover:bg-amber-500/10 transition-colors border border-transparent hover:border-amber-500/20"
+                          >
+                            <Layers className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
                           onClick={() => handleDelete(t.id)}
-                          className="p-1.5 text-white/30 hover:text-red-400 transition-colors"
+                          title="Excluir"
+                          className="p-1.5 rounded text-red-500 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -503,7 +581,7 @@ export default function TransactionsPage() {
 
       {/* Modal */}
       <GlassModal
-        title={editing ? "Editar Compra" : "Nova Compra"}
+        title={editing || editingGroup ? "Editar Compra" : "Nova Compra"}
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         footer={
@@ -590,6 +668,19 @@ export default function TransactionsPage() {
           required
         />
       </GlassModal>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={executeDelete}
+        loading={deleting}
+        title={deleteConfirm?.groupId ? "Excluir Parcelas" : "Excluir Compra"}
+        message={
+          deleteConfirm?.groupId
+            ? "Tem certeza que deseja excluir TODAS as parcelas desta compra?"
+            : "Tem certeza que deseja excluir esta compra?"
+        }
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { categoriesApi } from "@/services/api";
 import type { Category } from "@/types";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import { Tag, Plus, Pencil, Trash2 } from "lucide-react";
@@ -15,6 +16,10 @@ export default function CategoriesPage() {
   const [name, setName] = useState("");
   const [color, setColor] = useState("#007bff");
   const [saving, setSaving] = useState(false);
+
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const { showSuccess, showError } = useToast();
 
   const load = async () => {
@@ -64,14 +69,22 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir esta categoria?")) return;
+  const handleDelete = (id: number) => {
+    setDeleteConfirm(id);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
     try {
-      await categoriesApi.delete(id);
+      await categoriesApi.delete(deleteConfirm);
       showSuccess("Categoria excluída!");
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
     }
   };
 
@@ -168,6 +181,15 @@ export default function CategoriesPage() {
           <span className="text-xs text-gray-500 font-mono">{color}</span>
         </div>
       </GlassModal>
+
+      <ConfirmModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={executeDelete}
+        loading={deleting}
+        title="Excluir Categoria"
+        message="Tem certeza que deseja excluir esta categoria?"
+      />
     </div>
   );
 }

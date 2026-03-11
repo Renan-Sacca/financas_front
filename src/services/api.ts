@@ -210,15 +210,33 @@ export const transactionsApi = {
   delete: (id: number) =>
     fetchApi<void>(`/transactions/${id}`, { method: "DELETE" }),
 
-  updateStatus: (id: number, isPaid: boolean) =>
-    fetchApi<import("@/types").Transaction>(`/transactions/${id}/status`, {
+  updateStatus: (id: number) =>
+    fetchApi<import("@/types").Transaction>(`/transactions/${id}/toggle-payment`, {
       method: "PATCH",
-      body: JSON.stringify({ is_paid: isPaid }),
     }),
 
   markPreviousAsPaid: () =>
     fetchApi<{ updated: number }>("/transactions/mark-previous-paid", {
       method: "POST",
+    }),
+
+  updateGroup: (data: {
+    group_id: string;
+    card_id: number;
+    total_amount?: number;
+    description: string;
+    date: string;
+    category_id?: number | null;
+    installments?: number;
+  }) =>
+    fetchApi<void>("/transactions/update-group", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteGroup: (groupId: string) =>
+    fetchApi<void>(`/transactions/delete-group/${groupId}`, {
+      method: "DELETE",
     }),
 };
 

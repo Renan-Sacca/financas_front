@@ -48,7 +48,7 @@ export interface Transaction {
   is_paid: boolean;
   installment_number?: number | null;
   total_installments?: number | null;
-  installment_group_id?: string | null;
+  group_id?: string | null;
   created_via?: string;
 }
 

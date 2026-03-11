@@ -3,6 +3,7 @@ import { cardsApi, banksApi } from "@/services/api";
 import type { Card, Bank } from "@/types";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import { CreditCard, Plus, Pencil, Trash2, Banknote } from "lucide-react";
@@ -21,6 +22,10 @@ export default function CardsPage() {
     due_day: "",
   });
   const [saving, setSaving] = useState(false);
+
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const { showSuccess, showError } = useToast();
 
   const load = async () => {
@@ -94,14 +99,22 @@ export default function CardsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir este cartão?")) return;
+  const handleDelete = (id: number) => {
+    setDeleteConfirm(id);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
     try {
-      await cardsApi.delete(id);
+      await cardsApi.delete(deleteConfirm);
       showSuccess("Cartão excluído!");
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro ao excluir");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
     }
   };
 
@@ -278,6 +291,15 @@ export default function CardsPage() {
           </>
         )}
       </GlassModal>
+
+      <ConfirmModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={executeDelete}
+        loading={deleting}
+        title="Excluir Cartão"
+        message="Tem certeza que deseja excluir este cartão?"
+      />
     </div>
   );
 }

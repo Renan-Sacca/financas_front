@@ -3,6 +3,7 @@ import { depositsApi, banksApi } from "@/services/api";
 import type { Deposit, Bank } from "@/types";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
+import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import { Wallet, Plus, Pencil, Trash2, Filter } from "lucide-react";
@@ -34,6 +35,9 @@ export default function DepositsPage() {
     date: new Date().toISOString().split("T")[0],
   });
   const [saving, setSaving] = useState(false);
+
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -83,8 +87,15 @@ export default function DepositsPage() {
 
   const openEdit = (d: Deposit) => {
     setEditing(d);
+    
+    let matchedBankId = d.bank_id;
+    if (!matchedBankId && d.bank_name) {
+      const b = banks.find((bank) => bank.name === d.bank_name);
+      if (b) matchedBankId = b.id;
+    }
+
     setForm({
-      bank_id: String(d.bank_id),
+      bank_id: matchedBankId ? String(matchedBankId) : "",
       amount: String(d.amount),
       description: d.description,
       date: d.date,
@@ -118,14 +129,22 @@ export default function DepositsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Excluir este depósito?")) return;
+  const handleDelete = (id: number) => {
+    setDeleteConfirm(id);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
     try {
-      await depositsApi.delete(id);
+      await depositsApi.delete(deleteConfirm);
       showSuccess("Depósito excluído!");
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirm(null);
     }
   };
 
@@ -304,6 +323,15 @@ export default function DepositsPage() {
           required
         />
       </GlassModal>
+
+      <ConfirmModal
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
+        onConfirm={executeDelete}
+        loading={deleting}
+        title="Excluir Depósito"
+        message="Tem certeza que deseja excluir este depósito?"
+      />
     </div>
   );
 }
