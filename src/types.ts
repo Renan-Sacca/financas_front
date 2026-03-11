@@ -44,9 +44,9 @@ export interface Transaction {
   type: string;
   description: string;
   date: string;
-  billing_date?: string;
+  purchase_date?: string | null;
   is_paid: boolean;
-  current_installment?: number | null;
+  installment_number?: number | null;
   total_installments?: number | null;
   installment_group_id?: string | null;
   created_via?: string;

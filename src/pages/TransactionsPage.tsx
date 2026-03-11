@@ -122,26 +122,82 @@ export default function TransactionsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const data = {
-        card_id: parseInt(form.card_id),
-        amount: parseFloat(form.amount),
-        type: "expense" as const,
-        description: form.description,
-        date: form.date,
-        category_id: form.category_id ? parseInt(form.category_id) : null,
-        total_installments:
-          parseInt(form.installments) > 1
-            ? parseInt(form.installments)
-            : undefined,
-      };
-
+      const parsedInstallments = parseInt(form.installments) || 1;
+      const selectedCard = cards.find((c) => String(c.id) === form.card_id);
+      const isCredit = selectedCard?.type === "credit";
+      
       if (editing) {
+        if (editing.installment_group_id) {
+          showError("Para editar parcelas, exclua o cartão e refaça a compra (não suportado na UI atual, como na antiga).");
+          setSaving(false);
+          return;
+        }
+
+        const data = {
+          card_id: parseInt(form.card_id),
+          amount: parseFloat(form.amount),
+          type: "expense" as const,
+          description: form.description,
+          date: form.date, // If editing, date usually doesn't shift again.
+          category_id: form.category_id ? parseInt(form.category_id) : null,
+        };
         await transactionsApi.update(editing.id, data);
         showSuccess("Compra atualizada!");
       } else {
-        await transactionsApi.create(data);
-        showSuccess("Compra registrada!");
+        const totalAmount = parseFloat(form.amount);
+        const installmentAmount = totalAmount / parsedInstallments;
+        const [yearStr, monthStr, dayStr] = form.date.split("-");
+        const purchaseYear = parseInt(yearStr);
+        const purchaseMonth = parseInt(monthStr);
+        const purchaseDay = parseInt(dayStr);
+        
+        let firstDueYear = purchaseYear;
+        let firstDueMonth = purchaseMonth;
+        const dueDay = selectedCard?.due_day ?? purchaseDay; // defaults to purchase day if no due day (Debit)
+
+        if (isCredit && purchaseDay > dueDay) {
+          firstDueMonth += 1;
+          if (firstDueMonth > 12) {
+            firstDueMonth = 1;
+            firstDueYear += 1;
+          }
+        }
+
+        const groupId = parsedInstallments > 1 ? `group_${Date.now()}_${Math.random().toString(36).substring(2, 9)}` : undefined;
+
+        for (let i = 0; i < parsedInstallments; i++) {
+          let instYear = firstDueYear;
+          let instMonth = firstDueMonth + i;
+          
+          while (instMonth > 12) {
+            instMonth -= 12;
+            instYear += 1;
+          }
+
+          const paddedMonth = String(instMonth).padStart(2, "0");
+          const paddedDay = String(isCredit ? dueDay : purchaseDay).padStart(2, "0");
+          const invoiceDateStr = `${instYear}-${paddedMonth}-${paddedDay}`;
+          const instDescription = parsedInstallments > 1 ? `${form.description} (${i + 1}/${parsedInstallments})` : form.description;
+
+          const data = {
+            card_id: parseInt(form.card_id),
+            amount: installmentAmount,
+            type: "expense" as const,
+            description: instDescription,
+            date: invoiceDateStr,
+            purchase_date: form.date,
+            category_id: form.category_id ? parseInt(form.category_id) : null,
+            group_id: groupId,
+            installment_number: parsedInstallments > 1 ? i + 1 : undefined,
+            total_installments: parsedInstallments > 1 ? parsedInstallments : undefined,
+          };
+          
+          await transactionsApi.create(data);
+        }
+        
+        showSuccess(`Compra ${parsedInstallments > 1 ? `parcelada em ${parsedInstallments}x ` : ""}registrada!`);
       }
+      
       setModalOpen(false);
       load();
     } catch (err) {
@@ -338,13 +394,15 @@ export default function TransactionsPage() {
                       className="accent-[#007bff]"
                     />
                   </th>
-                  <th className="p-4 text-left">Data</th>
+                  <th className="p-4 text-left">Data Compra</th>
+                  <th className="p-4 text-left">Data Fatura</th>
                   <th className="p-4 text-left">Cartão</th>
                   <th className="p-4 text-left">Categoria</th>
                   <th className="p-4 text-left">Descrição</th>
                   <th className="p-4 text-right">Valor</th>
                   <th className="p-4 text-center">Parcela</th>
                   <th className="p-4 text-center">Status</th>
+                  <th className="p-4 text-center">Origem</th>
                   <th className="p-4 text-right">Ações</th>
                 </tr>
               </thead>
@@ -363,7 +421,10 @@ export default function TransactionsPage() {
                       />
                     </td>
                     <td className="p-4 text-sm text-white/70">
-                      {formatDate(t.date)}
+                      {t.purchase_date ? formatDate(t.purchase_date) : "—"}
+                    </td>
+                    <td className="p-4 text-sm text-white/70">
+                      {t.date ? formatDate(t.date) : "—"}
                     </td>
                     <td className="p-4 text-sm text-white/80">
                       {t.card_name || `#${t.card_id}`}
@@ -389,7 +450,7 @@ export default function TransactionsPage() {
                     </td>
                     <td className="p-4 text-xs text-center text-gray-400">
                       {t.total_installments && t.total_installments > 1
-                        ? `${t.current_installment}/${t.total_installments}`
+                        ? `${t.installment_number ?? 1}/${t.total_installments}`
                         : "—"}
                     </td>
                     <td className="p-4 text-center">
@@ -408,6 +469,13 @@ export default function TransactionsPage() {
                         )}
                         {t.is_paid ? "Pago" : "Pendente"}
                       </button>
+                    </td>
+                    <td className="p-4 text-xs text-center text-gray-400">
+                      {t.created_via ? (
+                        <span className="capitalize">{t.created_via}</span>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">

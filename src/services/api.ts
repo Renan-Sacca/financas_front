@@ -159,13 +159,22 @@ export const categoriesApi = {
 
 // ──── TRANSACTIONS ────
 export const transactionsApi = {
-  list: (params?: Record<string, string>) => {
+  list: async (params?: Record<string, string>) => {
     const query = params
       ? "?" + new URLSearchParams(params).toString()
       : "";
-    return fetchApi<import("@/types").Transaction[]>(
+    const items = await fetchApi<import("@/types").Transaction[]>(
       `/transactions/${query}`,
     );
+    return items.sort((a, b) => {
+      // Sort by invoice date
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) return dateA - dateB;
+      
+      // Secondary sort: installment number
+      return (a.installment_number || 0) - (b.installment_number || 0);
+    });
   },
 
   create: (data: {
