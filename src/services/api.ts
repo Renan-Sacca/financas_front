@@ -255,4 +255,32 @@ export const depositsApi = {
 export const summaryApi = {
   get: () =>
     fetchApi<import("@/types").FinancialSummary>("/summary/"),
+
+  getMonthlyExpenses: (params?: Record<string, string>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return fetchApi<{ month: string; total: number }[]>(
+      `/summary/monthly-expenses${query}`
+    );
+  },
+
+  getCardExpenses: (params?: Record<string, string>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return fetchApi<{ card: string; total: number }[]>(
+      `/summary/card-expenses${query}`
+    );
+  },
+
+  getCategoryExpenses: (params?: Record<string, string>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return fetchApi<{ category: string; total: number; color?: string }[]>(
+      `/summary/category-expenses${query}`
+    );
+  },
+
+  getCreditLimits: (params?: Record<string, string>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return fetchApi<{ card_name: string; bank_name: string; total_limit: number; used_limit: number; available_limit: number }[]>(
+      `/summary/credit-limits${query}`
+    );
+  },
 };

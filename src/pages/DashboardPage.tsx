@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { summaryApi, transactionsApi, banksApi, categoriesApi, cardsApi } from "@/services/api";
-import type { FinancialSummary, Bank } from "@/types";
+import { useEffect, useState, useCallback } from "react";
+import { summaryApi, banksApi, categoriesApi, cardsApi } from "@/services/api";
+import type { FinancialSummary, Bank, Category, Card } from "@/types";
 import {
   BarChart,
   Bar,
@@ -42,7 +42,9 @@ function formatBRL(value: number) {
 }
 
 const selectClass =
-  "bg-[#0d1b2a] border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none";
+  "bg-[#0d1b2a] border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full";
+const inputClass =
+  "bg-[#0d1b2a] border border-white/10 text-white text-sm rounded-lg px-3 py-2 w-full focus:border-[#007bff] outline-none";
 
 const tooltipStyle = {
   background: "rgba(5,10,20,0.95)",
@@ -52,138 +54,162 @@ const tooltipStyle = {
 };
 
 export default function DashboardPage() {
+  // Global Data
   const [summary, setSummary] = useState<FinancialSummary | null>(null);
-  const [monthlyData, setMonthlyData] = useState<
-    { name: string; total: number }[]
-  >([]);
-  const [cardPieData, setCardPieData] = useState<
-    { name: string; value: number }[]
-  >([]);
-  const [categoryPieData, setCategoryPieData] = useState<
-    { name: string; value: number; color: string }[]
-  >([]);
   const [banks, setBanks] = useState<Bank[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [globalLoading, setGlobalLoading] = useState(true);
 
-  // Filters
-  const [filterBank, setFilterBank] = useState("");
-  const [filterYear, setFilterYear] = useState("");
-  const [filterMonth, setFilterMonth] = useState("");
+  // Gastos Mensais State
+  const [monthlyBank, setMonthlyBank] = useState("");
+  const [monthlyCard, setMonthlyCard] = useState("");
+  const [monthlyYear, setMonthlyYear] = useState("");
+  const [monthlyMonth, setMonthlyMonth] = useState("");
+  const [monthlyCategory, setMonthlyCategory] = useState("");
+  const [monthlyData, setMonthlyData] = useState<{ name: string; total: number }[]>([]);
+  const [loadingMonthly, setLoadingMonthly] = useState(false);
 
-  const loadData = async () => {
+  // Gastos por Cartão State
+  const [cardPieBank, setCardPieBank] = useState("");
+  const [cardDateFrom, setCardDateFrom] = useState("");
+  const [cardDateTo, setCardDateTo] = useState("");
+  const [cardPieData, setCardPieData] = useState<{ name: string; value: number }[]>([]);
+  const [loadingCardPie, setLoadingCardPie] = useState(false);
+
+  // Gastos por Categoria State
+  const [catPieBank, setCatPieBank] = useState("");
+  const [catDateFrom, setCatDateFrom] = useState("");
+  const [catDateTo, setCatDateTo] = useState("");
+  const [catPieData, setCatPieData] = useState<{ name: string; value: number; color: string }[]>([]);
+  const [loadingCatPie, setLoadingCatPie] = useState(false);
+
+  // Limite de Crédito State
+  const [creditBank, setCreditBank] = useState("");
+  const [creditLimitData, setCreditLimitData] = useState<{
+    card_name: string;
+    bank_name: string;
+    total_limit: number;
+    used_limit: number;
+    available_limit: number;
+  }[]>([]);
+  const [loadingCredit, setLoadingCredit] = useState(false);
+
+  // Functions to load data
+  const loadGlobal = useCallback(async () => {
     try {
-      const [summaryData, banksList] = await Promise.all([
-        summaryApi.get(),
-        banksApi.list(),
+      const [sumRes, bankRes, cardRes, catRes] = await Promise.all([
+        summaryApi.get().catch(() => null),
+        banksApi.list().catch(() => []),
+        cardsApi.list().catch(() => []),
+        categoriesApi.list().catch(() => []),
       ]);
-      setSummary(summaryData);
-      setBanks(banksList);
-
-      // Load extra data for charts
-      try {
-        await categoriesApi.list();
-      } catch { /* ok */ }
-      try {
-        await cardsApi.list();
-      } catch { /* ok */ }
-
-      // Load transactions for charts
-      const params: Record<string, string> = {};
-      if (filterBank) params.bank_id = filterBank;
-      if (filterYear) params.year = filterYear;
-      if (filterMonth) params.month = filterMonth;
-
-      const transactions = await transactionsApi.list(params);
-
-      // Monthly data
-      const monthMap: Record<string, number> = {};
-      transactions.forEach((t) => {
-        const d = new Date(t.date);
-        const key = `${d.getMonth() + 1}/${d.getFullYear()}`;
-        monthMap[key] = (monthMap[key] || 0) + t.amount;
-      });
-      setMonthlyData(
-        Object.entries(monthMap)
-          .map(([name, total]) => ({ name, total }))
-          .sort((a, b) => {
-            const [ma, ya] = a.name.split("/").map(Number);
-            const [mb, yb] = b.name.split("/").map(Number);
-            return ya - yb || ma - mb;
-          }),
-      );
-
-      // Card pie
-      const cardMap: Record<string, number> = {};
-      transactions.forEach((t) => {
-        const cardName = t.card_name || `Cartão ${t.card_id}`;
-        cardMap[cardName] = (cardMap[cardName] || 0) + t.amount;
-      });
-      setCardPieData(
-        Object.entries(cardMap).map(([name, value]) => ({ name, value })),
-      );
-
-      // Category pie
-      const catMap: Record<string, { value: number; color: string }> = {};
-      transactions.forEach((t) => {
-        const catName = t.category_name || "Sem categoria";
-        const catColor = t.category_color || CHART_COLORS[Object.keys(catMap).length % CHART_COLORS.length];
-        if (!catMap[catName]) catMap[catName] = { value: 0, color: catColor };
-        catMap[catName].value += t.amount;
-      });
-      setCategoryPieData(
-        Object.entries(catMap).map(([name, { value, color }]) => ({
-          name,
-          value,
-          color,
-        })),
-      );
-    } catch {
-      // Silently handle – no API available
+      if (sumRes) setSummary(sumRes);
+      setBanks(bankRes);
+      setCards(cardRes);
+      setCategories(catRes);
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
-  };
+  }, []);
 
+  const fetchMonthlyChart = useCallback(async () => {
+    setLoadingMonthly(true);
+    try {
+      const params: Record<string, string> = {};
+      if (monthlyBank) params.bank_id = monthlyBank;
+      if (monthlyCard) params.card_id = monthlyCard;
+      if (monthlyCategory) params.category_id = monthlyCategory;
+      if (monthlyYear) params.year = monthlyYear;
+      if (monthlyMonth) params.month = monthlyMonth;
+
+      const raw = await summaryApi.getMonthlyExpenses(params).catch(() => []);
+      setMonthlyData(raw.map((d) => ({ name: d.month, total: d.total })));
+    } finally {
+      setLoadingMonthly(false);
+    }
+  }, [monthlyBank, monthlyCard, monthlyCategory, monthlyYear, monthlyMonth]);
+
+  const fetchCardPie = useCallback(async () => {
+    setLoadingCardPie(true);
+    try {
+      const params: Record<string, string> = {};
+      if (cardPieBank) params.bank_id = cardPieBank;
+      if (cardDateFrom) params.date_from = cardDateFrom;
+      if (cardDateTo) params.date_to = cardDateTo;
+
+      const raw = await summaryApi.getCardExpenses(params).catch(() => []);
+      setCardPieData(raw.map((d) => ({ name: d.card || "Sem cartão", value: d.total })));
+    } finally {
+      setLoadingCardPie(false);
+    }
+  }, [cardPieBank, cardDateFrom, cardDateTo]);
+
+  const fetchCatPie = useCallback(async () => {
+    setLoadingCatPie(true);
+    try {
+      const params: Record<string, string> = {};
+      if (catPieBank) params.bank_id = catPieBank;
+      if (catDateFrom) params.date_from = catDateFrom;
+      if (catDateTo) params.date_to = catDateTo;
+
+      const raw = await summaryApi.getCategoryExpenses(params).catch(() => []);
+      setCatPieData(
+        raw.map((d, i) => ({
+          name: d.category || "Sem categoria",
+          value: d.total,
+          color: d.color || CHART_COLORS[i % CHART_COLORS.length],
+        }))
+      );
+    } finally {
+      setLoadingCatPie(false);
+    }
+  }, [catPieBank, catDateFrom, catDateTo]);
+
+  const fetchCreditLimits = useCallback(async () => {
+    setLoadingCredit(true);
+    try {
+      const params: Record<string, string> = {};
+      if (creditBank) params.bank_id = creditBank;
+
+      const raw = await summaryApi.getCreditLimits(params).catch(() => []);
+      setCreditLimitData(raw);
+    } finally {
+      setLoadingCredit(false);
+    }
+  }, [creditBank]);
+
+  // Initial load
   useEffect(() => {
-    loadData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    loadGlobal().then(() => {
+      fetchMonthlyChart();
+      fetchCardPie();
+      fetchCatPie();
+      fetchCreditLimits();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const applyFilters = () => {
-    setLoading(true);
-    loadData();
-  };
-
-  const clearFilters = () => {
-    setFilterBank("");
-    setFilterYear("");
-    setFilterMonth("");
-    setLoading(true);
-    setTimeout(loadData, 0);
-  };
-
-  const months = [
+  const monthsList = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
+  const yearsList = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  const years = Array.from(
-    { length: 5 },
-    (_, i) => new Date().getFullYear() - i,
-  );
+  // Removed client-side credit limits filter (now fetching from API automatically)
 
-  // Flatten all credit cards from summary for credit limit section
-  const creditCards = (summary?.banks ?? []).flatMap((bank) =>
-    (bank.cards ?? [])
-      .filter((c) => c.type === "credit")
-      .map((card) => ({ ...card, bankName: bank.name })),
-  );
+  if (globalLoading) {
+    return (
+      <div className="flex justify-center items-center h-full min-h-[50vh]">
+        <span className="w-8 h-8 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="font-heading text-4xl font-semibold text-white tracking-tight">
-          Dashboard
-        </h1>
+        <h1 className="font-heading text-4xl font-semibold text-white tracking-tight">Dashboard</h1>
         <p className="text-gray-400 mt-1">Resumo financeiro</p>
       </div>
 
@@ -209,223 +235,220 @@ export default function DashboardPage() {
         />
         <SummaryCard
           icon={<ShieldCheck className="w-6 h-6" />}
-          label="Crédito Disponível"
+          label="Crédito Disp."
           value={formatBRL(summary?.total_credit_available ?? 0)}
           gradient="from-emerald-500 to-teal-500"
         />
       </div>
 
-      {/* Filters + Monthly Chart */}
+      {/* Gastos Mensais */}
       <div className="glass-panel rounded-2xl p-6" style={{ overflow: "visible" }}>
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-heading text-xl font-medium text-white flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-[#007bff]" />
-            Gastos Mensais
-          </h3>
-        </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <select
-            value={filterBank}
-            onChange={(e) => setFilterBank(e.target.value)}
-            className={selectClass}
-          >
-            <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os bancos</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(e.target.value)}
-            className={selectClass}
-          >
-            <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os anos</option>
-            {years.map((y) => (
-              <option key={y} value={y} style={{ background: "#0d1b2a", color: "white" }}>
-                {y}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className={selectClass}
-          >
-            <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os meses</option>
-            {months.map((m, i) => (
-              <option key={i} value={i + 1} style={{ background: "#0d1b2a", color: "white" }}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <GlassButton size="sm" onClick={applyFilters}>
-            Aplicar
-          </GlassButton>
-          <GlassButton size="sm" variant="secondary" onClick={clearFilters}>
-            Limpar
-          </GlassButton>
-        </div>
-
-        {loading ? (
-          <div className="h-[350px] flex items-center justify-center">
-            <span className="w-8 h-8 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" />
+        <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-[#007bff]" /> Gastos Mensais
+        </h3>
+        <div className="flex flex-wrap gap-4 mb-6 items-end">
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Banco</label>
+            <select value={monthlyBank} onChange={(e) => setMonthlyBank(e.target.value)} className={selectClass}>
+              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os bancos</option>
+              {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
+            </select>
           </div>
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Cartão</label>
+            <select value={monthlyCard} onChange={(e) => setMonthlyCard(e.target.value)} className={selectClass}>
+              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os cartões</option>
+              {cards.filter(c => !monthlyBank || c.bank_id.toString() === monthlyBank).map((c) => (
+                <option key={c.id} value={c.id} style={{ background: "#0d1b2a", color: "white" }}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Ano</label>
+            <select value={monthlyYear} onChange={(e) => setMonthlyYear(e.target.value)} className={selectClass}>
+              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os anos</option>
+              {yearsList.map((y) => <option key={y} value={y} style={{ background: "#0d1b2a", color: "white" }}>{y}</option>)}
+            </select>
+          </div>
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Mês</label>
+            <select value={monthlyMonth} onChange={(e) => setMonthlyMonth(e.target.value)} className={selectClass}>
+              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os meses</option>
+              {monthsList.map((m, i) => <option key={i} value={i + 1} style={{ background: "#0d1b2a", color: "white" }}>{m}</option>)}
+            </select>
+          </div>
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Categoria</label>
+            <select value={monthlyCategory} onChange={(e) => setMonthlyCategory(e.target.value)} className={selectClass}>
+              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todas</option>
+              {categories.map((c) => <option key={c.id} value={c.id} style={{ background: "#0d1b2a", color: "white" }}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <GlassButton size="sm" onClick={fetchMonthlyChart}>Aplicar</GlassButton>
+            <GlassButton size="sm" variant="secondary" onClick={() => {
+              setMonthlyBank(""); setMonthlyCard(""); setMonthlyYear(""); setMonthlyMonth(""); setMonthlyCategory("");
+              setTimeout(() => { document.getElementById("hidden-trigger-monthly")?.click(); }, 0);
+            }}>Limpar</GlassButton>
+            <button id="hidden-trigger-monthly" className="hidden" onClick={fetchMonthlyChart} />
+          </div>
+        </div>
+
+        {loadingMonthly ? (
+          <div className="h-[350px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
         ) : monthlyData.length ? (
           <div style={{ width: "100%", height: 350, overflow: "visible" }}>
             <ResponsiveContainer width="99%" height={350}>
               <BarChart data={monthlyData}>
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" />
                 <YAxis stroke="rgba(255,255,255,0.3)" />
-                <Tooltip
-                  cursor={{ fill: "rgba(255,255,255,0.05)" }}
-                  contentStyle={tooltipStyle}
-                  formatter={(value) => [formatBRL(Number(value)), "Total"]}
-                />
-                <Bar
-                  dataKey="total"
-                  fill="#007bff"
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={60}
-                />
+                <Tooltip cursor={{ fill: "rgba(255,255,255,0.05)" }} contentStyle={tooltipStyle} formatter={(v) => [formatBRL(Number(v)), "Total"]} />
+                <Bar dataKey="total" fill="#007bff" radius={[8, 8, 0, 0]} maxBarSize={60} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        ) : (
-          <div className="h-[350px] flex items-center justify-center text-gray-500">
-            <DollarSign className="w-8 h-8 mr-2 opacity-30" />
-            Nenhuma transação encontrada
-          </div>
-        )}
+        ) : <div className="h-[350px] flex items-center justify-center text-gray-500">Nenhuma transação encontrada</div>}
       </div>
+
 
       {/* Pie Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* By Card */}
+        
+        {/* Gastos por Cartão */}
         <div className="glass-panel rounded-2xl p-6" style={{ overflow: "visible" }}>
           <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-[#007bff]" />
-            Gastos por Cartão
+            <CreditCard className="w-5 h-5 text-[#007bff]" /> Gastos por Cartão
           </h3>
-          {cardPieData.length ? (
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-xs text-gray-400 mb-1">Banco</label>
+              <select value={cardPieBank} onChange={(e) => setCardPieBank(e.target.value)} className={selectClass}>
+                <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos</option>
+                {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-400 mb-1">Data Início</label>
+              <input type="date" value={cardDateFrom} onChange={e => setCardDateFrom(e.target.value)} className={inputClass} style={{ colorScheme: "dark" }} />
+            </div>
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-400 mb-1">Data Fim</label>
+              <input type="date" value={cardDateTo} onChange={e => setCardDateTo(e.target.value)} className={inputClass} style={{ colorScheme: "dark" }} />
+            </div>
+            <div className="col-span-2 flex gap-2 justify-end">
+              <GlassButton size="sm" onClick={fetchCardPie}>Aplicar</GlassButton>
+              <GlassButton size="sm" variant="secondary" onClick={() => {
+                setCardPieBank(""); setCardDateFrom(""); setCardDateTo("");
+                setTimeout(() => { document.getElementById("hidden-trigger-card")?.click(); }, 0);
+              }}>Limpar</GlassButton>
+              <button id="hidden-trigger-card" className="hidden" onClick={fetchCardPie} />
+            </div>
+          </div>
+          {loadingCardPie ? (
+            <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
+          ) : cardPieData.length ? (
             <div style={{ width: "100%", height: 300, overflow: "visible" }}>
               <ResponsiveContainer width="99%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={cardPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`
-                    }
-                    labelLine={{ stroke: "rgba(255,255,255,0.3)" }}
-                  >
-                    {cardPieData.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={CHART_COLORS[i % CHART_COLORS.length]}
-                      />
-                    ))}
+                  <Pie data={cardPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
+                    {cardPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value) => formatBRL(Number(value))}
-                  />
-                  <Legend
-                    wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                  />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
+                  <Legend wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              Sem dados de cartões
-            </div>
-          )}
+          ) : <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>}
         </div>
 
-        {/* By Category */}
+        {/* Gastos por Categoria */}
         <div className="glass-panel rounded-2xl p-6" style={{ overflow: "visible" }}>
           <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-[#007bff]" />
-            Gastos por Categoria
+            <DollarSign className="w-5 h-5 text-[#007bff]" /> Gastos por Categoria
           </h3>
-          {categoryPieData.length ? (
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-xs text-gray-400 mb-1">Banco</label>
+              <select value={catPieBank} onChange={(e) => setCatPieBank(e.target.value)} className={selectClass}>
+                <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos</option>
+                {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-400 mb-1">Data Início</label>
+              <input type="date" value={catDateFrom} onChange={e => setCatDateFrom(e.target.value)} className={inputClass} style={{ colorScheme: "dark" }} />
+            </div>
+            <div className="col-span-1">
+              <label className="block text-xs text-gray-400 mb-1">Data Fim</label>
+              <input type="date" value={catDateTo} onChange={e => setCatDateTo(e.target.value)} className={inputClass} style={{ colorScheme: "dark" }} />
+            </div>
+            <div className="col-span-2 flex gap-2 justify-end">
+              <GlassButton size="sm" onClick={fetchCatPie}>Aplicar</GlassButton>
+              <GlassButton size="sm" variant="secondary" onClick={() => {
+                setCatPieBank(""); setCatDateFrom(""); setCatDateTo("");
+                setTimeout(() => { document.getElementById("hidden-trigger-cat")?.click(); }, 0);
+              }}>Limpar</GlassButton>
+              <button id="hidden-trigger-cat" className="hidden" onClick={fetchCatPie} />
+            </div>
+          </div>
+          {loadingCatPie ? (
+            <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
+          ) : catPieData.length ? (
             <div style={{ width: "100%", height: 300, overflow: "visible" }}>
               <ResponsiveContainer width="99%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={categoryPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`
-                    }
-                    labelLine={{ stroke: "rgba(255,255,255,0.3)" }}
-                  >
-                    {categoryPieData.map((entry, i) => (
-                      <Cell
-                        key={i}
-                        fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]}
-                      />
-                    ))}
+                  <Pie data={catPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
+                    {catPieData.map((e, i) => <Cell key={i} fill={e.color || CHART_COLORS[i % CHART_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value) => formatBRL(Number(value))}
-                  />
-                  <Legend
-                    wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }}
-                  />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
+                  <Legend wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-500">
-              Sem dados de categorias
-            </div>
-          )}
+          ) : <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>}
         </div>
       </div>
 
       {/* Credit Limit per Bank */}
       <div className="glass-panel rounded-2xl p-6">
         <h3 className="font-heading text-xl font-medium text-white mb-6 flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-[#007bff]" />
-          Limite de Crédito por Banco
+          <ShieldCheck className="w-5 h-5 text-[#007bff]" /> Limite de Crédito
         </h3>
-        {creditCards.length > 0 ? (
+        <div className="flex gap-4 mb-6 items-end">
+          <div className="flex-1 max-w-[300px]">
+            <label className="block text-xs text-gray-400 mb-1">Banco</label>
+            <select value={creditBank} onChange={(e) => setCreditBank(e.target.value)} className={selectClass}>
+              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os bancos</option>
+              {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <GlassButton size="sm" onClick={fetchCreditLimits}>Aplicar</GlassButton>
+            <GlassButton size="sm" variant="secondary" onClick={() => {
+              setCreditBank("");
+              setTimeout(() => { document.getElementById("hidden-trigger-credit")?.click(); }, 0);
+            }}>Limpar</GlassButton>
+            <button id="hidden-trigger-credit" className="hidden" onClick={fetchCreditLimits} />
+          </div>
+        </div>
+
+        {loadingCredit ? (
+          <div className="py-8 flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
+        ) : creditLimitData.length > 0 ? (
           <div className="space-y-4">
-            {creditCards.map((card) => {
-              const used = card.used_amount ?? 0;
-              const limit = card.limit_amount ?? 1;
-              const pct = Math.min((used / limit) * 100, 100);
+            {creditLimitData.map((card, idx) => {
+              const used = card.used_limit;
+              const limit = card.total_limit;
+              const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
               return (
-                <div key={card.id} className="space-y-2">
+                <div key={idx} className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-white/80">
-                      {card.bankName} — {card.name}
-                    </span>
-                    <span className="text-white/60">
-                      {formatBRL(used)} / {formatBRL(limit)}
-                    </span>
+                    <span className="text-white/80">{card.bank_name ? `${card.bank_name} — ` : ""}{card.card_name}</span>
+                    <span className="text-white/60">{formatBRL(used)} / {formatBRL(limit)}</span>
                   </div>
                   <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        pct > 80
-                          ? "bg-gradient-to-r from-red-500 to-orange-500"
-                          : "bg-gradient-to-r from-[#007bff] to-cyan-400"
-                      }`}
+                      className={`h-full rounded-full transition-all duration-700 ${pct > 80 ? "bg-gradient-to-r from-red-500 to-orange-500" : "bg-gradient-to-r from-[#007bff] to-cyan-400"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -433,37 +456,19 @@ export default function DashboardPage() {
               );
             })}
           </div>
-        ) : (
-          <div className="text-center text-gray-500 py-8">
-            Nenhum cartão de crédito encontrado
-          </div>
-        )}
+        ) : <div className="text-center text-gray-500 py-8">Nenhum cartão encontrado</div>}
       </div>
     </div>
   );
 }
 
-function SummaryCard({
-  icon,
-  label,
-  value,
-  gradient,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  gradient: string;
-}) {
+function SummaryCard({ icon, label, value, gradient }: { icon: React.ReactNode; label: string; value: string; gradient: string }) {
   return (
     <div className="glass-panel glass-panel-hover rounded-2xl p-6 group">
-      <div
-        className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-500`}
-      >
+      <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
         {icon}
       </div>
-      <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">
-        {label}
-      </p>
+      <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">{label}</p>
       <p className="font-heading text-2xl font-bold text-white">{value}</p>
     </div>
   );
