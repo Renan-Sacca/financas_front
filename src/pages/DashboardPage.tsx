@@ -441,9 +441,9 @@ export default function DashboardPage() {
                     <Loader2 className="w-4 h-4 text-[#007bff] animate-spin" />
                   </div>
                 )}
-                <ResponsiveContainer width="99%" height={300}>
+                <ResponsiveContainer width="99%" height={300} id="card-pie-container">
                   <PieChart>
-                    <Pie data={cardPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
+                    <Pie data={cardPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }} isAnimationActive={false}>
                       {cardPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                     </Pie>
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
@@ -502,9 +502,9 @@ export default function DashboardPage() {
                     <Loader2 className="w-4 h-4 text-[#007bff] animate-spin" />
                   </div>
                 )}
-                <ResponsiveContainer width="99%" height={300}>
+                <ResponsiveContainer width="99%" height={300} id="cat-pie-container">
                   <PieChart>
-                    <Pie data={catPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
+                    <Pie data={catPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }} isAnimationActive={false}>
                       {catPieData.map((e, i) => <Cell key={i} fill={e.color || CHART_COLORS[i % CHART_COLORS.length]} />)}
                     </Pie>
                     <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
