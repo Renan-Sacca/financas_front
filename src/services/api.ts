@@ -80,10 +80,10 @@ export const authApi = {
 // ──── BANKS ────
 export const banksApi = {
   list: () =>
-    fetchApi<import("@/types").Bank[]>("/banks/"),
+    fetchApi<import("@/types").Bank[]>("/banks"),
 
   create: (data: { name: string; current_balance: number }) =>
-    fetchApi<import("@/types").Bank>("/banks/", {
+    fetchApi<import("@/types").Bank>("/banks", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -101,7 +101,7 @@ export const banksApi = {
 // ──── CARDS ────
 export const cardsApi = {
   list: () =>
-    fetchApi<import("@/types").Card[]>("/cards/"),
+    fetchApi<import("@/types").Card[]>("/cards"),
 
   create: (
     bankId: number,
@@ -139,10 +139,10 @@ export const cardsApi = {
 // ──── CATEGORIES ────
 export const categoriesApi = {
   list: () =>
-    fetchApi<import("@/types").Category[]>("/categories/"),
+    fetchApi<import("@/types").Category[]>("/categories"),
 
   create: (data: { name: string; color: string }) =>
-    fetchApi<import("@/types").Category>("/categories/", {
+    fetchApi<import("@/types").Category>("/categories", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -182,7 +182,7 @@ export const transactionsApi = {
     total_installments?: number;
     category_id?: number | null;
   }) =>
-    fetchApi<import("@/types").Transaction>("/transactions/", {
+    fetchApi<import("@/types").Transaction>("/transactions", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -251,7 +251,7 @@ export const depositsApi = {
     description: string;
     date: string;
   }) =>
-    fetchApi<import("@/types").Deposit>("/deposits/", {
+    fetchApi<import("@/types").Deposit>("/deposits", {
       method: "POST",
       body: JSON.stringify(data),
     }),
@@ -277,7 +277,7 @@ export const depositsApi = {
 // ──── SUMMARY ────
 export const summaryApi = {
   get: () =>
-    fetchApi<import("@/types").FinancialSummary>("/summary/"),
+    fetchApi<import("@/types").FinancialSummary>("/summary"),
 
   getMonthlyExpenses: (params?: Record<string, string>) => {
     const query = params ? "?" + new URLSearchParams(params).toString() : "";
