@@ -6,6 +6,7 @@ import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
+import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import { Tag, Plus, Pencil, Trash2 } from "lucide-react";
 
 export default function CategoriesPage() {
@@ -21,6 +22,7 @@ export default function CategoriesPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { showSuccess, showError } = useToast();
+  const invalidateDashboard = useInvalidateDashboard();
 
   const load = async () => {
     try {
@@ -61,6 +63,7 @@ export default function CategoriesPage() {
         showSuccess("Categoria criada!");
       }
       setModalOpen(false);
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -79,6 +82,7 @@ export default function CategoriesPage() {
     try {
       await categoriesApi.delete(deleteConfirm);
       showSuccess("Categoria excluída!");
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");

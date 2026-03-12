@@ -6,6 +6,7 @@ import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
+import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import { CreditCard, Plus, Pencil, Trash2, Banknote } from "lucide-react";
 
 export default function CardsPage() {
@@ -27,6 +28,7 @@ export default function CardsPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { showSuccess, showError } = useToast();
+  const invalidateDashboard = useInvalidateDashboard();
 
   const load = async () => {
     try {
@@ -91,6 +93,7 @@ export default function CardsPage() {
         showSuccess("Cartão criado!");
       }
       setModalOpen(false);
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro ao salvar cartão");
@@ -109,6 +112,7 @@ export default function CardsPage() {
     try {
       await cardsApi.delete(deleteConfirm);
       showSuccess("Cartão excluído!");
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro ao excluir");

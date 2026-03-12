@@ -6,6 +6,7 @@ import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
+import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import { Building2, Plus, Pencil, Trash2, DollarSign } from "lucide-react";
 
 export default function BanksPage() {
@@ -21,6 +22,7 @@ export default function BanksPage() {
   const [deleting, setDeleting] = useState(false);
 
   const { showSuccess, showError } = useToast();
+  const invalidateDashboard = useInvalidateDashboard();
 
   const load = async () => {
     try {
@@ -63,6 +65,7 @@ export default function BanksPage() {
         showSuccess("Banco criado!");
       }
       setModalOpen(false);
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro ao salvar banco");
@@ -81,6 +84,7 @@ export default function BanksPage() {
     try {
       await banksApi.delete(deleteConfirm);
       showSuccess("Banco excluído!");
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro ao excluir banco");

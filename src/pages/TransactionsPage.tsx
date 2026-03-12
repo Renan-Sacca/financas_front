@@ -6,6 +6,7 @@ import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
+import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import {
   Receipt,
   Plus,
@@ -17,6 +18,8 @@ import {
   CheckCheck,
   Link,
   Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const formatBRL = (v: number) =>
@@ -25,8 +28,21 @@ const formatBRL = (v: number) =>
 const formatDate = (d: string) =>
   new Date(d + "T00:00:00").toLocaleDateString("pt-BR");
 
+// Helper to get current month date range
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  return {
+    from: firstDay.toISOString().split("T")[0],
+    to: lastDay.toISOString().split("T")[0],
+  };
+};
+
 export default function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -35,10 +51,15 @@ export default function TransactionsPage() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const { showSuccess, showError } = useToast();
+  const invalidateDashboard = useInvalidateDashboard();
 
-  // Filters
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  // Pagination (client-side)
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  // Filters - initialize with current month
+  const [filterDateFrom, setFilterDateFrom] = useState(() => getCurrentMonthRange().from);
+  const [filterDateTo, setFilterDateTo] = useState(() => getCurrentMonthRange().to);
   const [filterBank, setFilterBank] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
@@ -74,7 +95,8 @@ export default function TransactionsPage() {
       if (filterBank) params.bank_id = filterBank;
       if (filterStatus) params.status = filterStatus;
 
-      setTransactions(await transactionsApi.list(params));
+      const data = await transactionsApi.list(params);
+      setAllTransactions(data);
     } catch {
       showError("Erro ao carregar transações");
     } finally {
@@ -82,20 +104,28 @@ export default function TransactionsPage() {
     }
   };
 
+  // Computed pagination
+  const totalItems = allTransactions.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+  const transactions = allTransactions.slice((page - 1) * perPage, page * perPage);
+
   useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyFilters = () => {
+    setPage(1);
     setLoading(true);
     load();
   };
 
   const clearFilters = () => {
-    setFilterDateFrom("");
-    setFilterDateTo("");
+    const range = getCurrentMonthRange();
+    setFilterDateFrom(range.from);
+    setFilterDateTo(range.to);
     setFilterBank("");
     setFilterStatus("");
+    setPage(1);
     setLoading(true);
     setTimeout(load, 0);
   };
@@ -151,7 +181,6 @@ export default function TransactionsPage() {
         const data = {
           card_id: parseInt(form.card_id),
           amount: parseFloat(form.amount),
-          type: "expense" as const,
           description: form.description,
           date: form.date, // If editing, date usually doesn't shift again.
           category_id: form.category_id ? parseInt(form.category_id) : null,
@@ -197,7 +226,6 @@ export default function TransactionsPage() {
           const data = {
             card_id: parseInt(form.card_id),
             amount: installmentAmount,
-            type: "expense" as const,
             description: instDescription,
             date: invoiceDateStr,
             purchase_date: form.date,
@@ -214,6 +242,7 @@ export default function TransactionsPage() {
       }
       
       setModalOpen(false);
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -241,6 +270,7 @@ export default function TransactionsPage() {
         await transactionsApi.deleteGroup(deleteConfirm.groupId);
         showSuccess("Grupo de parcelas excluído!");
       }
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -252,7 +282,7 @@ export default function TransactionsPage() {
 
   const openEditGroup = (t: Transaction) => {
     if (!t.group_id) return;
-    const groupTransactions = transactions.filter((tx) => tx.group_id === t.group_id);
+    const groupTransactions = allTransactions.filter((tx) => tx.group_id === t.group_id);
     const firstTx = groupTransactions[0] || t;
     const totalAmount = groupTransactions.reduce((acc, tx) => acc + tx.amount, 0);
 
@@ -273,6 +303,7 @@ export default function TransactionsPage() {
     try {
       await transactionsApi.updateStatus(t.id);
       showSuccess("Status alterado com sucesso!");
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -305,6 +336,7 @@ export default function TransactionsPage() {
         `${selected.size} transações ${isPaid ? "pagas" : "pendentes"}`,
       );
       setSelected(new Set());
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -315,6 +347,7 @@ export default function TransactionsPage() {
     try {
       const result = await transactionsApi.markPreviousAsPaid();
       showSuccess(`${result.updated} compras marcadas como pagas`);
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -350,13 +383,14 @@ export default function TransactionsPage() {
           <Filter className="w-3.5 h-3.5" />
           Filtros
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
           <input
             type="date"
             value={filterDateFrom}
             onChange={(e) => setFilterDateFrom(e.target.value)}
             placeholder="Data Inicial"
             className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
+            style={{ colorScheme: "dark" }}
           />
           <input
             type="date"
@@ -364,6 +398,7 @@ export default function TransactionsPage() {
             onChange={(e) => setFilterDateTo(e.target.value)}
             placeholder="Data Final"
             className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
+            style={{ colorScheme: "dark" }}
           />
           <select
             value={filterBank}
@@ -383,6 +418,15 @@ export default function TransactionsPage() {
             <option value="">Todos os status</option>
             <option value="paid">Pago</option>
             <option value="pending">Pendente</option>
+          </select>
+          <select
+            value={perPage}
+            onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
+          >
+            <option value="10">10 por página</option>
+            <option value="20">20 por página</option>
+            <option value="30">30 por página</option>
           </select>
           <GlassButton size="sm" onClick={applyFilters}>
             Aplicar
@@ -575,6 +619,32 @@ export default function TransactionsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Pagination */}
+          <div className="flex items-center justify-between p-4 border-t border-white/10">
+            <span className="text-sm text-gray-400">
+              Mostrando {transactions.length} de {totalItems} registros
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-white/70 px-3">
+                Página {page} de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}

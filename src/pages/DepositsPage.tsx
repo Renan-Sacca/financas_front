@@ -6,7 +6,8 @@ import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
-import { Wallet, Plus, Pencil, Trash2, Filter } from "lucide-react";
+import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
+import { Wallet, Plus, Pencil, Trash2, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 
 const formatBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -14,17 +15,35 @@ const formatBRL = (v: number) =>
 const formatDate = (d: string) =>
   new Date(d + "T00:00:00").toLocaleDateString("pt-BR");
 
+// Helper to get current month date range
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  return {
+    from: firstDay.toISOString().split("T")[0],
+    to: lastDay.toISOString().split("T")[0],
+  };
+};
+
 export default function DepositsPage() {
-  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [allDeposits, setAllDeposits] = useState<Deposit[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Deposit | null>(null);
   const { showSuccess, showError } = useToast();
+  const invalidateDashboard = useInvalidateDashboard();
 
-  // Filters
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  // Pagination (client-side)
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  // Filters - initialize with current month
+  const [filterDateFrom, setFilterDateFrom] = useState(() => getCurrentMonthRange().from);
+  const [filterDateTo, setFilterDateTo] = useState(() => getCurrentMonthRange().to);
   const [filterBank, setFilterBank] = useState("");
 
   // Form
@@ -49,7 +68,8 @@ export default function DepositsPage() {
       if (filterDateTo) params.date_to = filterDateTo;
       if (filterBank) params.bank_id = filterBank;
 
-      setDeposits(await depositsApi.list(params));
+      const data = await depositsApi.list(params);
+      setAllDeposits(data);
     } catch {
       showError("Erro ao carregar depósitos");
     } finally {
@@ -57,19 +77,27 @@ export default function DepositsPage() {
     }
   };
 
+  // Computed pagination
+  const totalItems = allDeposits.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+  const deposits = allDeposits.slice((page - 1) * perPage, page * perPage);
+
   useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyFilters = () => {
+    setPage(1);
     setLoading(true);
     load();
   };
 
   const clearFilters = () => {
-    setFilterDateFrom("");
-    setFilterDateTo("");
+    const range = getCurrentMonthRange();
+    setFilterDateFrom(range.from);
+    setFilterDateTo(range.to);
     setFilterBank("");
+    setPage(1);
     setLoading(true);
     setTimeout(load, 0);
   };
@@ -121,6 +149,7 @@ export default function DepositsPage() {
         showSuccess("Depósito registrado!");
       }
       setModalOpen(false);
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -139,6 +168,7 @@ export default function DepositsPage() {
     try {
       await depositsApi.delete(deleteConfirm);
       showSuccess("Depósito excluído!");
+      invalidateDashboard();
       load();
     } catch (err) {
       showError(err instanceof Error ? err.message : "Erro");
@@ -169,18 +199,20 @@ export default function DepositsPage() {
           <Filter className="w-3.5 h-3.5" />
           Filtros
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <input
             type="date"
             value={filterDateFrom}
             onChange={(e) => setFilterDateFrom(e.target.value)}
             className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
+            style={{ colorScheme: "dark" }}
           />
           <input
             type="date"
             value={filterDateTo}
             onChange={(e) => setFilterDateTo(e.target.value)}
             className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
+            style={{ colorScheme: "dark" }}
           />
           <select
             value={filterBank}
@@ -191,6 +223,15 @@ export default function DepositsPage() {
             {banks.map((b) => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
+          </select>
+          <select
+            value={perPage}
+            onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
+          >
+            <option value="10">10 por página</option>
+            <option value="20">20 por página</option>
+            <option value="30">30 por página</option>
           </select>
           <GlassButton size="sm" onClick={applyFilters}>
             Aplicar
@@ -262,6 +303,32 @@ export default function DepositsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Pagination */}
+          <div className="flex items-center justify-between p-4 border-t border-white/10">
+            <span className="text-sm text-gray-400">
+              Mostrando {deposits.length} de {totalItems} registros
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-white/70 px-3">
+                Página {page} de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}

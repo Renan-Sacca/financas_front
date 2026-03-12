@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { ToastProvider } from "@/components/Toast";
+import { DashboardCacheProvider } from "@/hooks/useDashboardCache";
 import LiquidBackground from "@/components/LiquidBackground";
 import GlassNavbar from "@/components/GlassNavbar";
 
@@ -113,7 +114,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
-          <AppRoutes />
+          <DashboardCacheProvider>
+            <AppRoutes />
+          </DashboardCacheProvider>
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

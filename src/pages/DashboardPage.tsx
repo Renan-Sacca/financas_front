@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { summaryApi, banksApi, categoriesApi, cardsApi } from "@/services/api";
 import type { FinancialSummary, Bank, Category, Card } from "@/types";
+import { useDashboardCache } from "@/hooks/useDashboardCache";
 import {
   BarChart,
   Bar,
@@ -20,6 +21,7 @@ import {
   Wallet,
   DollarSign,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import GlassButton from "@/components/GlassButton";
 
@@ -53,46 +55,72 @@ const tooltipStyle = {
   color: "#fff",
 };
 
-export default function DashboardPage() {
-  // Global Data
-  const [summary, setSummary] = useState<FinancialSummary | null>(null);
-  const [banks, setBanks] = useState<Bank[]>([]);
-  const [cards, setCards] = useState<Card[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [globalLoading, setGlobalLoading] = useState(true);
+// Helper functions for date ranges
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  return {
+    from: firstDay.toISOString().split("T")[0],
+    to: lastDay.toISOString().split("T")[0],
+  };
+};
 
-  // Gastos Mensais State
-  const [monthlyBank, setMonthlyBank] = useState("");
-  const [monthlyCard, setMonthlyCard] = useState("");
-  const [monthlyYear, setMonthlyYear] = useState("");
-  const [monthlyMonth, setMonthlyMonth] = useState("");
-  const [monthlyCategory, setMonthlyCategory] = useState("");
-  const [monthlyData, setMonthlyData] = useState<{ name: string; total: number }[]>([]);
+const getLast6MonthsRange = () => {
+  const now = new Date();
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  return {
+    from: startDate.toISOString().split("T")[0],
+    to: endDate.toISOString().split("T")[0],
+  };
+};
+
+export default function DashboardPage() {
+  const { cache, updateMultiple, shouldRefetch } = useDashboardCache();
+  const initialLoadDone = useRef(false);
+
+  // Global Data - initialize from cache
+  const [summary, setSummary] = useState<FinancialSummary | null>(cache.summary);
+  const [banks, setBanks] = useState<Bank[]>(cache.banks);
+  const [cards, setCards] = useState<Card[]>(cache.cards);
+  const [categories, setCategories] = useState<Category[]>(cache.categories);
+  const [globalLoading, setGlobalLoading] = useState(!cache.lastFetch);
+
+  // Gastos Mensais State - initialize from cache
+  const [monthlyBank, setMonthlyBank] = useState(cache.monthlyFilters.bank);
+  const [monthlyCard, setMonthlyCard] = useState(cache.monthlyFilters.card);
+  const [monthlyYear, setMonthlyYear] = useState(cache.monthlyFilters.year);
+  const [monthlyMonth, setMonthlyMonth] = useState(cache.monthlyFilters.month);
+  const [monthlyCategory, setMonthlyCategory] = useState(cache.monthlyFilters.category);
+  const [monthlyData, setMonthlyData] = useState<{ name: string; total: number }[]>(cache.monthlyData);
   const [loadingMonthly, setLoadingMonthly] = useState(false);
 
-  // Gastos por Cartão State
-  const [cardPieBank, setCardPieBank] = useState("");
-  const [cardDateFrom, setCardDateFrom] = useState("");
-  const [cardDateTo, setCardDateTo] = useState("");
-  const [cardPieData, setCardPieData] = useState<{ name: string; value: number }[]>([]);
+  // Gastos por Cartão State - initialize from cache or current month
+  const [cardPieBank, setCardPieBank] = useState(cache.cardPieFilters.bank);
+  const [cardDateFrom, setCardDateFrom] = useState(() => cache.cardPieFilters.dateFrom || getCurrentMonthRange().from);
+  const [cardDateTo, setCardDateTo] = useState(() => cache.cardPieFilters.dateTo || getCurrentMonthRange().to);
+  const [cardPieData, setCardPieData] = useState<{ name: string; value: number }[]>(cache.cardPieData);
   const [loadingCardPie, setLoadingCardPie] = useState(false);
 
-  // Gastos por Categoria State
-  const [catPieBank, setCatPieBank] = useState("");
-  const [catDateFrom, setCatDateFrom] = useState("");
-  const [catDateTo, setCatDateTo] = useState("");
-  const [catPieData, setCatPieData] = useState<{ name: string; value: number; color: string }[]>([]);
+  // Gastos por Categoria State - initialize from cache or current month
+  const [catPieBank, setCatPieBank] = useState(cache.catPieFilters.bank);
+  const [catDateFrom, setCatDateFrom] = useState(() => cache.catPieFilters.dateFrom || getCurrentMonthRange().from);
+  const [catDateTo, setCatDateTo] = useState(() => cache.catPieFilters.dateTo || getCurrentMonthRange().to);
+  const [catPieData, setCatPieData] = useState<{ name: string; value: number; color: string }[]>(cache.catPieData);
   const [loadingCatPie, setLoadingCatPie] = useState(false);
 
-  // Limite de Crédito State
-  const [creditBank, setCreditBank] = useState("");
+  // Limite de Crédito State - initialize from cache
+  const [creditBank, setCreditBank] = useState(cache.creditFilters.bank);
   const [creditLimitData, setCreditLimitData] = useState<{
     card_name: string;
     bank_name: string;
     total_limit: number;
     used_limit: number;
     available_limit: number;
-  }[]>([]);
+  }[]>(cache.creditLimitData);
   const [loadingCredit, setLoadingCredit] = useState(false);
 
   // Functions to load data
@@ -122,9 +150,18 @@ export default function DashboardPage() {
       if (monthlyCategory) params.category_id = monthlyCategory;
       if (monthlyYear) params.year = monthlyYear;
       if (monthlyMonth) params.month = monthlyMonth;
+      
+      // If no filters, default to last 6 months
+      if (!monthlyYear && !monthlyMonth) {
+        const last6Months = getLast6MonthsRange();
+        params.date_from = last6Months.from;
+        params.date_to = last6Months.to;
+      }
 
       const raw = await summaryApi.getMonthlyExpenses(params).catch(() => []);
-      setMonthlyData(raw.map((d) => ({ name: d.month, total: d.total })));
+      // Limit to last 6 months of data
+      const limitedData = raw.slice(-6);
+      setMonthlyData(limitedData.map((d) => ({ name: d.month, total: d.total })));
     } finally {
       setLoadingMonthly(false);
     }
@@ -179,8 +216,17 @@ export default function DashboardPage() {
     }
   }, [creditBank]);
 
-  // Initial load
+  // Initial load - only fetch if cache is invalidated
   useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+
+    // If we have cached data and shouldn't refetch, skip loading
+    if (!shouldRefetch() && cache.lastFetch) {
+      setGlobalLoading(false);
+      return;
+    }
+
     loadGlobal().then(() => {
       fetchMonthlyChart();
       fetchCardPie();
@@ -189,6 +235,25 @@ export default function DashboardPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Save to cache whenever data changes
+  useEffect(() => {
+    if (globalLoading) return;
+    updateMultiple({
+      summary,
+      banks,
+      cards,
+      categories,
+      monthlyData,
+      cardPieData,
+      catPieData,
+      creditLimitData,
+      monthlyFilters: { bank: monthlyBank, card: monthlyCard, year: monthlyYear, month: monthlyMonth, category: monthlyCategory },
+      cardPieFilters: { bank: cardPieBank, dateFrom: cardDateFrom, dateTo: cardDateTo },
+      catPieFilters: { bank: catPieBank, dateFrom: catDateFrom, dateTo: catDateTo },
+      creditFilters: { bank: creditBank },
+    });
+  }, [summary, banks, cards, categories, monthlyData, cardPieData, catPieData, creditLimitData, globalLoading]);
 
   const monthsList = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -294,10 +359,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {loadingMonthly ? (
+        {loadingMonthly && monthlyData.length === 0 ? (
           <div className="h-[350px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
         ) : monthlyData.length ? (
-          <div style={{ width: "100%", height: 350, overflow: "visible" }}>
+          <div style={{ width: "100%", height: 350, overflow: "visible" }} className="relative">
+            {loadingMonthly && (
+              <div className="absolute top-2 right-2 z-10">
+                <Loader2 className="w-4 h-4 text-[#007bff] animate-spin" />
+              </div>
+            )}
             <ResponsiveContainer width="99%" height={350}>
               <BarChart data={monthlyData}>
                 <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" />
@@ -338,26 +408,38 @@ export default function DashboardPage() {
             <div className="col-span-2 flex gap-2 justify-end">
               <GlassButton size="sm" onClick={fetchCardPie}>Aplicar</GlassButton>
               <GlassButton size="sm" variant="secondary" onClick={() => {
-                setCardPieBank(""); setCardDateFrom(""); setCardDateTo("");
+                const currentMonth = getCurrentMonthRange();
+                setCardPieBank(""); setCardDateFrom(currentMonth.from); setCardDateTo(currentMonth.to);
                 setTimeout(() => { document.getElementById("hidden-trigger-card")?.click(); }, 0);
               }}>Limpar</GlassButton>
               <button id="hidden-trigger-card" className="hidden" onClick={fetchCardPie} />
             </div>
           </div>
-          {loadingCardPie ? (
+          {loadingCardPie && cardPieData.length === 0 ? (
             <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
           ) : cardPieData.length ? (
-            <div style={{ width: "100%", height: 300, overflow: "visible" }}>
-              <ResponsiveContainer width="99%" height={300}>
-                <PieChart>
-                  <Pie data={cardPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
-                    {cardPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
-                  <Legend wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div style={{ width: "100%", height: 300, overflow: "visible" }} className="relative">
+                {loadingCardPie && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <Loader2 className="w-4 h-4 text-[#007bff] animate-spin" />
+                  </div>
+                )}
+                <ResponsiveContainer width="99%" height={300}>
+                  <PieChart>
+                    <Pie data={cardPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
+                      {cardPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
+                    <Legend wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                <span className="text-sm text-gray-400">Total: </span>
+                <span className="text-lg font-semibold text-white">{formatBRL(cardPieData.reduce((acc, d) => acc + d.value, 0))}</span>
+              </div>
+            </>
           ) : <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>}
         </div>
 
@@ -385,26 +467,38 @@ export default function DashboardPage() {
             <div className="col-span-2 flex gap-2 justify-end">
               <GlassButton size="sm" onClick={fetchCatPie}>Aplicar</GlassButton>
               <GlassButton size="sm" variant="secondary" onClick={() => {
-                setCatPieBank(""); setCatDateFrom(""); setCatDateTo("");
+                const currentMonth = getCurrentMonthRange();
+                setCatPieBank(""); setCatDateFrom(currentMonth.from); setCatDateTo(currentMonth.to);
                 setTimeout(() => { document.getElementById("hidden-trigger-cat")?.click(); }, 0);
               }}>Limpar</GlassButton>
               <button id="hidden-trigger-cat" className="hidden" onClick={fetchCatPie} />
             </div>
           </div>
-          {loadingCatPie ? (
+          {loadingCatPie && catPieData.length === 0 ? (
             <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
           ) : catPieData.length ? (
-            <div style={{ width: "100%", height: 300, overflow: "visible" }}>
-              <ResponsiveContainer width="99%" height={300}>
-                <PieChart>
-                  <Pie data={catPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
-                    {catPieData.map((e, i) => <Cell key={i} fill={e.color || CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
-                  <Legend wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div style={{ width: "100%", height: 300, overflow: "visible" }} className="relative">
+                {loadingCatPie && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <Loader2 className="w-4 h-4 text-[#007bff] animate-spin" />
+                  </div>
+                )}
+                <ResponsiveContainer width="99%" height={300}>
+                  <PieChart>
+                    <Pie data={catPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name ?? ""} (${((percent ?? 0) * 100).toFixed(0)}%)`} labelLine={{ stroke: "rgba(255,255,255,0.3)" }}>
+                      {catPieData.map((e, i) => <Cell key={i} fill={e.color || CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatBRL(Number(v))} />
+                    <Legend wrapperStyle={{ color: "rgba(255,255,255,0.7)", fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                <span className="text-sm text-gray-400">Total: </span>
+                <span className="text-lg font-semibold text-white">{formatBRL(catPieData.reduce((acc, d) => acc + d.value, 0))}</span>
+              </div>
+            </>
           ) : <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>}
         </div>
       </div>
@@ -432,10 +526,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {loadingCredit ? (
+        {loadingCredit && creditLimitData.length === 0 ? (
           <div className="py-8 flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
         ) : creditLimitData.length > 0 ? (
-          <div className="space-y-4">
+          <div className="space-y-4 relative">
+            {loadingCredit && (
+              <div className="absolute top-0 right-0 z-10">
+                <Loader2 className="w-4 h-4 text-[#007bff] animate-spin" />
+              </div>
+            )}
             {creditLimitData.map((card, idx) => {
               const used = card.used_limit;
               const limit = card.total_limit;

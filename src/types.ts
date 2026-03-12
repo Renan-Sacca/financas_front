@@ -41,7 +41,6 @@ export interface Transaction {
   category_name?: string | null;
   category_color?: string | null;
   amount: number;
-  type: string;
   description: string;
   date: string;
   purchase_date?: string | null;
