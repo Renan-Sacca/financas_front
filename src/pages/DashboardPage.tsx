@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { summaryApi, banksApi, categoriesApi, cardsApi } from "@/services/api";
 import type { FinancialSummary, Bank, Category, Card } from "@/types";
 import { useDashboardCache } from "@/hooks/useDashboardCache";
+import { useToast } from "@/components/Toast";
 import {
   BarChart,
   Bar,
@@ -68,10 +69,12 @@ const getCurrentMonthRange = () => {
   };
 };
 
-const getLast6MonthsRange = () => {
+const getDefault3MonthsRange = () => {
   const now = new Date();
-  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  // Mês anterior
+  const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // Mês posterior (último dia)
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
   return {
     from: startDate.toISOString().split("T")[0],
     to: endDate.toISOString().split("T")[0],
@@ -80,6 +83,7 @@ const getLast6MonthsRange = () => {
 
 export default function DashboardPage() {
   const { cache, updateMultiple, shouldRefetch } = useDashboardCache();
+  const { showError } = useToast();
   const initialLoadDone = useRef(false);
 
   // Global Data - initialize from cache
@@ -89,12 +93,16 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<Category[]>(cache.categories);
   const [globalLoading, setGlobalLoading] = useState(!cache.lastFetch);
 
-  // Gastos Mensais State - initialize from cache
+  // Gastos Mensais State - initialize from cache or default 3 months
   const [monthlyBank, setMonthlyBank] = useState(cache.monthlyFilters.bank);
   const [monthlyCard, setMonthlyCard] = useState(cache.monthlyFilters.card);
-  const [monthlyYear, setMonthlyYear] = useState(cache.monthlyFilters.year);
-  const [monthlyMonth, setMonthlyMonth] = useState(cache.monthlyFilters.month);
   const [monthlyCategory, setMonthlyCategory] = useState(cache.monthlyFilters.category);
+  const [monthlyDateFrom, setMonthlyDateFrom] = useState(() => 
+    cache.monthlyFilters.dateFrom || getDefault3MonthsRange().from
+  );
+  const [monthlyDateTo, setMonthlyDateTo] = useState(() => 
+    cache.monthlyFilters.dateTo || getDefault3MonthsRange().to
+  );
   const [monthlyData, setMonthlyData] = useState<{ name: string; total: number }[]>(cache.monthlyData);
   const [loadingMonthly, setLoadingMonthly] = useState(false);
 
@@ -142,30 +150,34 @@ export default function DashboardPage() {
   }, []);
 
   const fetchMonthlyChart = useCallback(async () => {
+    // Validate date range - maximum 1 year
+    if (monthlyDateFrom && monthlyDateTo) {
+      const startDate = new Date(monthlyDateFrom);
+      const endDate = new Date(monthlyDateTo);
+      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > 365) {
+        showError("O período máximo permitido é de 1 ano");
+        return;
+      }
+    }
+
     setLoadingMonthly(true);
     try {
       const params: Record<string, string> = {};
       if (monthlyBank) params.bank_id = monthlyBank;
       if (monthlyCard) params.card_id = monthlyCard;
       if (monthlyCategory) params.category_id = monthlyCategory;
-      if (monthlyYear) params.year = monthlyYear;
-      if (monthlyMonth) params.month = monthlyMonth;
-      
-      // If no filters, default to last 6 months
-      if (!monthlyYear && !monthlyMonth) {
-        const last6Months = getLast6MonthsRange();
-        params.date_from = last6Months.from;
-        params.date_to = last6Months.to;
-      }
+      if (monthlyDateFrom) params.date_from = monthlyDateFrom;
+      if (monthlyDateTo) params.date_to = monthlyDateTo;
 
       const raw = await summaryApi.getMonthlyExpenses(params).catch(() => []);
-      // Limit to last 6 months of data
-      const limitedData = raw.slice(-6);
-      setMonthlyData(limitedData.map((d) => ({ name: d.month, total: d.total })));
+      setMonthlyData(raw.map((d) => ({ name: d.month, total: d.total })));
     } finally {
       setLoadingMonthly(false);
     }
-  }, [monthlyBank, monthlyCard, monthlyCategory, monthlyYear, monthlyMonth]);
+  }, [monthlyBank, monthlyCard, monthlyCategory, monthlyDateFrom, monthlyDateTo]);
 
   const fetchCardPie = useCallback(async () => {
     setLoadingCardPie(true);
@@ -248,20 +260,15 @@ export default function DashboardPage() {
       cardPieData,
       catPieData,
       creditLimitData,
-      monthlyFilters: { bank: monthlyBank, card: monthlyCard, year: monthlyYear, month: monthlyMonth, category: monthlyCategory },
+      monthlyFilters: { bank: monthlyBank, card: monthlyCard, category: monthlyCategory, dateFrom: monthlyDateFrom, dateTo: monthlyDateTo },
       cardPieFilters: { bank: cardPieBank, dateFrom: cardDateFrom, dateTo: cardDateTo },
       catPieFilters: { bank: catPieBank, dateFrom: catDateFrom, dateTo: catDateTo },
       creditFilters: { bank: creditBank },
     });
   }, [summary, banks, cards, categories, monthlyData, cardPieData, catPieData, creditLimitData, globalLoading]);
 
-  const monthsList = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
-  const yearsList = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
-
-  // Removed client-side credit limits filter (now fetching from API automatically)
+  // Auto-update pie charts when filters change - REMOVED
+  // Charts will only update when clicking "Apply" button
 
   if (globalLoading) {
     return (
@@ -329,30 +336,41 @@ export default function DashboardPage() {
             </select>
           </div>
           <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
-            <label className="block text-xs text-gray-400 mb-1">Ano</label>
-            <select value={monthlyYear} onChange={(e) => setMonthlyYear(e.target.value)} className={selectClass}>
-              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os anos</option>
-              {yearsList.map((y) => <option key={y} value={y} style={{ background: "#0d1b2a", color: "white" }}>{y}</option>)}
-            </select>
-          </div>
-          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
-            <label className="block text-xs text-gray-400 mb-1">Mês</label>
-            <select value={monthlyMonth} onChange={(e) => setMonthlyMonth(e.target.value)} className={selectClass}>
-              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os meses</option>
-              {monthsList.map((m, i) => <option key={i} value={i + 1} style={{ background: "#0d1b2a", color: "white" }}>{m}</option>)}
-            </select>
-          </div>
-          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
             <label className="block text-xs text-gray-400 mb-1">Categoria</label>
             <select value={monthlyCategory} onChange={(e) => setMonthlyCategory(e.target.value)} className={selectClass}>
               <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todas</option>
               {categories.map((c) => <option key={c.id} value={c.id} style={{ background: "#0d1b2a", color: "white" }}>{c.name}</option>)}
             </select>
           </div>
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Data Início</label>
+            <input 
+              type="date" 
+              value={monthlyDateFrom} 
+              onChange={(e) => setMonthlyDateFrom(e.target.value)} 
+              className={inputClass} 
+              style={{ colorScheme: "dark" }} 
+            />
+          </div>
+          <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
+            <label className="block text-xs text-gray-400 mb-1">Data Fim</label>
+            <input 
+              type="date" 
+              value={monthlyDateTo} 
+              onChange={(e) => setMonthlyDateTo(e.target.value)} 
+              className={inputClass} 
+              style={{ colorScheme: "dark" }} 
+            />
+          </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <GlassButton size="sm" onClick={fetchMonthlyChart}>Aplicar</GlassButton>
             <GlassButton size="sm" variant="secondary" onClick={() => {
-              setMonthlyBank(""); setMonthlyCard(""); setMonthlyYear(""); setMonthlyMonth(""); setMonthlyCategory("");
+              setMonthlyBank(""); 
+              setMonthlyCard(""); 
+              setMonthlyCategory("");
+              const defaultRange = getDefault3MonthsRange();
+              setMonthlyDateFrom(defaultRange.from); 
+              setMonthlyDateTo(defaultRange.to);
               setTimeout(() => { document.getElementById("hidden-trigger-monthly")?.click(); }, 0);
             }}>Limpar</GlassButton>
             <button id="hidden-trigger-monthly" className="hidden" onClick={fetchMonthlyChart} />
@@ -415,9 +433,7 @@ export default function DashboardPage() {
               <button id="hidden-trigger-card" className="hidden" onClick={fetchCardPie} />
             </div>
           </div>
-          {loadingCardPie && cardPieData.length === 0 ? (
-            <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
-          ) : cardPieData.length ? (
+          {cardPieData.length > 0 ? (
             <>
               <div style={{ width: "100%", height: 300, overflow: "visible" }} className="relative">
                 {loadingCardPie && (
@@ -440,7 +456,11 @@ export default function DashboardPage() {
                 <span className="text-lg font-semibold text-white">{formatBRL(cardPieData.reduce((acc, d) => acc + d.value, 0))}</span>
               </div>
             </>
-          ) : <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>}
+          ) : loadingCardPie ? (
+            <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>
+          )}
         </div>
 
         {/* Gastos por Categoria */}
@@ -474,9 +494,7 @@ export default function DashboardPage() {
               <button id="hidden-trigger-cat" className="hidden" onClick={fetchCatPie} />
             </div>
           </div>
-          {loadingCatPie && catPieData.length === 0 ? (
-            <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
-          ) : catPieData.length ? (
+          {catPieData.length > 0 ? (
             <>
               <div style={{ width: "100%", height: 300, overflow: "visible" }} className="relative">
                 {loadingCatPie && (
@@ -499,7 +517,11 @@ export default function DashboardPage() {
                 <span className="text-lg font-semibold text-white">{formatBRL(catPieData.reduce((acc, d) => acc + d.value, 0))}</span>
               </div>
             </>
-          ) : <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>}
+          ) : loadingCatPie ? (
+            <div className="h-[300px] flex justify-center items-center"><span className="w-6 h-6 border-2 border-[#007bff] border-t-transparent rounded-full animate-spin" /></div>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">Sem dados</div>
+          )}
         </div>
       </div>
 

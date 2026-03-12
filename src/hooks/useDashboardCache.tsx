@@ -11,7 +11,7 @@ interface DashboardCache {
   creditLimitData: any[];
   lastFetch: number | null;
   // Filter states
-  monthlyFilters: { bank: string; card: string; year: string; month: string; category: string };
+  monthlyFilters: { bank: string; card: string; category: string; dateFrom: string; dateTo: string };
   cardPieFilters: { bank: string; dateFrom: string; dateTo: string };
   catPieFilters: { bank: string; dateFrom: string; dateTo: string };
   creditFilters: { bank: string };
@@ -35,7 +35,7 @@ const initialCache: DashboardCache = {
   catPieData: [],
   creditLimitData: [],
   lastFetch: null,
-  monthlyFilters: { bank: "", card: "", year: "", month: "", category: "" },
+  monthlyFilters: { bank: "", card: "", category: "", dateFrom: "", dateTo: "" },
   cardPieFilters: { bank: "", dateFrom: "", dateTo: "" },
   catPieFilters: { bank: "", dateFrom: "", dateTo: "" },
   creditFilters: { bank: "" },
