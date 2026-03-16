@@ -78,6 +78,12 @@ export default function TransactionsPage() {
     description: "",
     date: new Date().toISOString().split("T")[0],
   });
+  // Lembra os últimos valores usados para nova compra
+  const [lastUsed, setLastUsed] = useState({
+    card_id: "",
+    category_id: "",
+    date: new Date().toISOString().split("T")[0],
+  });
   const [editingGroup, setEditingGroup] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -140,12 +146,12 @@ export default function TransactionsPage() {
     setEditing(null);
     setEditingGroup(null);
     setForm({
-      card_id: cards[0]?.id?.toString() || "",
+      card_id: lastUsed.card_id || cards[0]?.id?.toString() || "",
       amount: "",
       installments: "1",
-      category_id: "",
+      category_id: lastUsed.category_id,
       description: "",
-      date: new Date().toISOString().split("T")[0],
+      date: lastUsed.date,
     });
     setModalOpen(true);
   };
@@ -245,6 +251,13 @@ export default function TransactionsPage() {
         }
         
         showSuccess(`Compra ${parsedInstallments > 1 ? `parcelada em ${parsedInstallments}x ` : ""}registrada!`);
+        
+        // Salva os últimos valores usados para a próxima nova compra
+        setLastUsed({
+          card_id: form.card_id,
+          category_id: form.category_id,
+          date: form.date,
+        });
       }
       
       setModalOpen(false);
@@ -721,7 +734,7 @@ export default function TransactionsPage() {
           label="Cartão"
           options={[
             { value: "", label: "Selecione um cartão" },
-            ...cards.map((c) => ({ value: c.id, label: `${c.name} (${c.bank_name})` })),
+            ...cards.map((c) => ({ value: c.id, label: c.bank_name ? `${c.name} (${c.bank_name})` : c.name })),
           ]}
           value={form.card_id}
           onChange={(val) => setForm({ ...form, card_id: val })}
