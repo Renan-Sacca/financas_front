@@ -23,14 +23,6 @@ const bankArbitrary = fc.record({
 });
 
 /**
- * Arbitrary generator for valid form state.
- */
-const formStateArbitrary = fc.record({
-  name: fc.string({ minLength: 0, maxLength: 100 }),
-  balance: fc.string({ minLength: 0, maxLength: 20 }),
-});
-
-/**
  * Feature: navbar-ui-restructure
  * Property 4: Bank data displayed and editable
  *

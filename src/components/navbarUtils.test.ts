@@ -133,7 +133,7 @@ describe("Navbar Links Composition", () => {
     it("should validate correct link composition returns valid", () => {
       fc.assert(
         fc.property(
-          fc.constant([...EXPECTED_NAV_LINKS]),
+          fc.constant([...EXPECTED_NAV_LINKS] as string[]),
           (linkLabels) => {
             const result = validateNavLinksComposition(linkLabels);
 

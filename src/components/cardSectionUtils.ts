@@ -387,7 +387,7 @@ export function recordCallbackInvocation(
  * @returns Object indicating the operation result and whether callback should be invoked
  */
 export function simulateCardCreate(
-  bankId: number,
+  _bankId: number,
   formState: NewCardFormState
 ): {
   operationResult: CrudOperationResult;

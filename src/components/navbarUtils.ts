@@ -53,11 +53,11 @@ export function validateNavLinksComposition(linkLabels: string[]): {
   missingLinks: string[];
   unexpectedLinks: string[];
 } {
-  const expectedSet = new Set(EXPECTED_NAV_LINKS);
-  const removedSet = new Set(REMOVED_NAV_LINKS);
+  const expectedSet = new Set<string>(EXPECTED_NAV_LINKS);
+  const removedSet = new Set<string>(REMOVED_NAV_LINKS);
   const actualSet = new Set(linkLabels);
 
-  const missingLinks = EXPECTED_NAV_LINKS.filter(link => !actualSet.has(link));
+  const missingLinks = ([...EXPECTED_NAV_LINKS] as string[]).filter(link => !actualSet.has(link));
   const unexpectedLinks = linkLabels.filter(link => !expectedSet.has(link));
   const containsRemovedLinks = linkLabels.some(link => removedSet.has(link));
 

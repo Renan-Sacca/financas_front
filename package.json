@@ -9,8 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "test": "vitest --run",
-    "test:watch": "vitest"
+    "test": "vitest --run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts"
   },
   "dependencies": {
     "lucide-react": "^0.577.0",

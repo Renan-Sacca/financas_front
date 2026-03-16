@@ -28,47 +28,35 @@ import type { Card } from "@/types";
 
 /**
  * Arbitrary generator for valid Card objects.
+ * Note: bank_name uses undefined (not null) to match the Card interface.
  */
-const cardArbitrary = fc.record({
+const cardArbitrary: fc.Arbitrary<Card> = fc.record({
   id: fc.integer({ min: 1, max: 10000 }),
   name: fc.string({ minLength: 1, maxLength: 100 }),
   type: fc.constantFrom("credit" as const, "debit" as const),
-  limit_amount: fc.option(fc.double({ min: 0, max: 1000000, noNaN: true }), { nil: null }),
-  due_day: fc.option(fc.integer({ min: 1, max: 31 }), { nil: null }),
+  limit_amount: fc.option(fc.double({ min: 0, max: 1000000, noNaN: true }), { nil: undefined }),
+  due_day: fc.option(fc.integer({ min: 1, max: 31 }), { nil: undefined }),
   bank_id: fc.integer({ min: 1, max: 10000 }),
-  bank_name: fc.option(fc.string({ minLength: 1, maxLength: 50 })),
-});
-
-/**
- * Arbitrary generator for credit cards specifically.
- */
-const creditCardArbitrary = fc.record({
-  id: fc.integer({ min: 1, max: 10000 }),
-  name: fc.string({ minLength: 1, maxLength: 100 }),
-  type: fc.constant("credit" as const),
-  limit_amount: fc.option(fc.double({ min: 0, max: 1000000, noNaN: true }), { nil: null }),
-  due_day: fc.option(fc.integer({ min: 1, max: 31 }), { nil: null }),
-  bank_id: fc.integer({ min: 1, max: 10000 }),
-  bank_name: fc.option(fc.string({ minLength: 1, maxLength: 50 })),
+  bank_name: fc.option(fc.string({ minLength: 1, maxLength: 50 }), { nil: undefined }),
 });
 
 /**
  * Arbitrary generator for debit cards specifically.
  */
-const debitCardArbitrary = fc.record({
+const debitCardArbitrary: fc.Arbitrary<Card> = fc.record({
   id: fc.integer({ min: 1, max: 10000 }),
   name: fc.string({ minLength: 1, maxLength: 100 }),
   type: fc.constant("debit" as const),
-  limit_amount: fc.option(fc.double({ min: 0, max: 1000000, noNaN: true }), { nil: null }),
-  due_day: fc.option(fc.integer({ min: 1, max: 31 }), { nil: null }),
+  limit_amount: fc.option(fc.double({ min: 0, max: 1000000, noNaN: true }), { nil: undefined }),
+  due_day: fc.option(fc.integer({ min: 1, max: 31 }), { nil: undefined }),
   bank_id: fc.integer({ min: 1, max: 10000 }),
-  bank_name: fc.option(fc.string({ minLength: 1, maxLength: 50 })),
+  bank_name: fc.option(fc.string({ minLength: 1, maxLength: 50 }), { nil: undefined }),
 });
 
 /**
  * Arbitrary generator for arrays of cards.
  */
-const cardsArrayArbitrary = fc.array(cardArbitrary, { minLength: 0, maxLength: 20 });
+const cardsArrayArbitrary: fc.Arbitrary<Card[]> = fc.array(cardArbitrary, { minLength: 0, maxLength: 20 });
 
 /**
  * Feature: navbar-ui-restructure
