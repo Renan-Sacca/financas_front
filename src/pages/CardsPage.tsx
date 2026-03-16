@@ -5,6 +5,7 @@ import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
+import GlassDropdown from "@/components/GlassDropdown";
 import { useToast } from "@/components/Toast";
 import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import { CreditCard, Plus, Pencil, Trash2, Banknote } from "lucide-react";
@@ -158,7 +159,7 @@ export default function CardsPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-500 ${
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-75 ${
                     card.type === "credit"
                       ? "bg-gradient-to-br from-purple-500 to-pink-500"
                       : "bg-gradient-to-br from-emerald-500 to-teal-500"
@@ -231,20 +232,13 @@ export default function CardsPage() {
           </>
         }
       >
-        <div className="glass-input-group">
-          <select
-            id="card-bank"
-            value={form.bank_id}
-            onChange={(e) => setForm({ ...form, bank_id: e.target.value })}
-          >
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="card-bank">Banco</label>
-        </div>
+        <GlassDropdown
+          id="card-bank"
+          label="Banco"
+          options={banks.map((b) => ({ value: b.id, label: b.name }))}
+          value={form.bank_id}
+          onChange={(val) => setForm({ ...form, bank_id: val })}
+        />
 
         <GlassInput
           id="card-name"
@@ -254,22 +248,16 @@ export default function CardsPage() {
           required
         />
 
-        <div className="glass-input-group">
-          <select
-            id="card-type"
-            value={form.type}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                type: e.target.value as "credit" | "debit",
-              })
-            }
-          >
-            <option value="credit">Crédito</option>
-            <option value="debit">Débito</option>
-          </select>
-          <label htmlFor="card-type">Tipo</label>
-        </div>
+        <GlassDropdown
+          id="card-type"
+          label="Tipo"
+          options={[
+            { value: "credit", label: "Crédito" },
+            { value: "debit", label: "Débito" },
+          ]}
+          value={form.type}
+          onChange={(val) => setForm({ ...form, type: val as "credit" | "debit" })}
+        />
 
         {form.type === "credit" && (
           <>

@@ -17,7 +17,7 @@ export default function GlassButton({
   ...props
 }: GlassButtonProps) {
   const base =
-    "font-semibold uppercase tracking-widest transition-all duration-300 rounded-xl inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+    "font-semibold uppercase tracking-widest transition-all duration-75 rounded-xl inline-flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
   const sizes = {
     sm: "px-4 py-2 text-[10px]",

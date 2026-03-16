@@ -5,6 +5,8 @@ import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
+import Dropdown from "@/components/Dropdown";
+import GlassDropdown from "@/components/GlassDropdown";
 import { useToast } from "@/components/Toast";
 import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import {
@@ -400,34 +402,31 @@ export default function TransactionsPage() {
             className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
             style={{ colorScheme: "dark" }}
           />
-          <select
+          <Dropdown
+            options={[{ value: "", label: "Todos os bancos" }, ...banks.map((b) => ({ value: b.id, label: b.name }))]}
             value={filterBank}
-            onChange={(e) => setFilterBank(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
-          >
-            <option value="">Todos os bancos</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <select
+            onChange={setFilterBank}
+            placeholder="Todos os bancos"
+          />
+          <Dropdown
+            options={[
+              { value: "", label: "Todos os status" },
+              { value: "paid", label: "Pago" },
+              { value: "pending", label: "Pendente" },
+            ]}
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
-          >
-            <option value="">Todos os status</option>
-            <option value="paid">Pago</option>
-            <option value="pending">Pendente</option>
-          </select>
-          <select
-            value={perPage}
-            onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
-          >
-            <option value="10">10 por página</option>
-            <option value="20">20 por página</option>
-            <option value="30">30 por página</option>
-          </select>
+            onChange={setFilterStatus}
+            placeholder="Todos os status"
+          />
+          <Dropdown
+            options={[
+              { value: "10", label: "10 por página" },
+              { value: "20", label: "20 por página" },
+              { value: "30", label: "30 por página" },
+            ]}
+            value={String(perPage)}
+            onChange={(val) => { setPerPage(Number(val)); setPage(1); }}
+          />
           <GlassButton size="sm" onClick={applyFilters}>
             Aplicar
           </GlassButton>
@@ -665,21 +664,16 @@ export default function TransactionsPage() {
           </>
         }
       >
-        <div className="glass-input-group">
-          <select
-            id="tx-card"
-            value={form.card_id}
-            onChange={(e) => setForm({ ...form, card_id: e.target.value })}
-          >
-            <option value="">Selecione um cartão</option>
-            {cards.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.bank_name})
-              </option>
-            ))}
-          </select>
-          <label htmlFor="tx-card">Cartão</label>
-        </div>
+        <GlassDropdown
+          id="tx-card"
+          label="Cartão"
+          options={[
+            { value: "", label: "Selecione um cartão" },
+            ...cards.map((c) => ({ value: c.id, label: `${c.name} (${c.bank_name})` })),
+          ]}
+          value={form.card_id}
+          onChange={(val) => setForm({ ...form, card_id: val })}
+        />
 
         <GlassInput
           id="tx-amount"
@@ -705,21 +699,16 @@ export default function TransactionsPage() {
           />
         )}
 
-        <div className="glass-input-group">
-          <select
-            id="tx-category"
-            value={form.category_id}
-            onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-          >
-            <option value="">Sem categoria</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="tx-category">Categoria</label>
-        </div>
+        <GlassDropdown
+          id="tx-category"
+          label="Categoria"
+          options={[
+            { value: "", label: "Sem categoria" },
+            ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          value={form.category_id}
+          onChange={(val) => setForm({ ...form, category_id: val })}
+        />
 
         <GlassInput
           id="tx-description"

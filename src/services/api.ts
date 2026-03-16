@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL || "/api").replace(/^http:\/\//, "https://");
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 async function fetchApi<T>(
   endpoint: string,

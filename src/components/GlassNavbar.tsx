@@ -37,7 +37,7 @@ export default function GlassNavbar() {
             <span className="font-heading font-bold text-xl tracking-tighter text-white">
               FINANÇAS
             </span>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#29C5F6] to-[#3a4b9f] flex items-center justify-center shadow-[0_4px_10px_rgba(41,197,246,0.3)] group-hover:scale-105 transition-transform duration-300">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#29C5F6] to-[#3a4b9f] flex items-center justify-center shadow-[0_4px_10px_rgba(41,197,246,0.3)] group-hover:scale-105 transition-transform duration-75">
               <Wallet className="w-4 h-4 text-white" strokeWidth={3} />
             </div>
           </Link>
@@ -50,7 +50,7 @@ export default function GlassNavbar() {
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest transition-colors duration-300 ${
+                  className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest transition-colors duration-75 ${
                     isActive
                       ? "text-white"
                       : "text-white/50 hover:text-white"

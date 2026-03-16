@@ -21,7 +21,7 @@ export default function GlassModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="glass-panel rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        className="glass-modal rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

@@ -5,6 +5,8 @@ import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
+import Dropdown from "@/components/Dropdown";
+import GlassDropdown from "@/components/GlassDropdown";
 import { useToast } from "@/components/Toast";
 import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
 import { Wallet, Plus, Pencil, Trash2, Filter, ChevronLeft, ChevronRight } from "lucide-react";
@@ -214,25 +216,21 @@ export default function DepositsPage() {
             className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
             style={{ colorScheme: "dark" }}
           />
-          <select
+          <Dropdown
+            options={[{ value: "", label: "Todos os bancos" }, ...banks.map((b) => ({ value: b.id, label: b.name }))]}
             value={filterBank}
-            onChange={(e) => setFilterBank(e.target.value)}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
-          >
-            <option value="">Todos os bancos</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <select
-            value={perPage}
-            onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-            className="bg-white/5 border border-white/10 text-white text-sm rounded-lg px-3 py-2 outline-none focus:border-[#007bff]"
-          >
-            <option value="10">10 por página</option>
-            <option value="20">20 por página</option>
-            <option value="30">30 por página</option>
-          </select>
+            onChange={setFilterBank}
+            placeholder="Todos os bancos"
+          />
+          <Dropdown
+            options={[
+              { value: "10", label: "10 por página" },
+              { value: "20", label: "20 por página" },
+              { value: "30", label: "30 por página" },
+            ]}
+            value={String(perPage)}
+            onChange={(val) => { setPerPage(Number(val)); setPage(1); }}
+          />
           <GlassButton size="sm" onClick={applyFilters}>
             Aplicar
           </GlassButton>
@@ -349,19 +347,16 @@ export default function DepositsPage() {
           </>
         }
       >
-        <div className="glass-input-group">
-          <select
-            id="dep-bank"
-            value={form.bank_id}
-            onChange={(e) => setForm({ ...form, bank_id: e.target.value })}
-          >
-            <option value="">Selecione o banco</option>
-            {banks.map((b) => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-          <label htmlFor="dep-bank">Banco</label>
-        </div>
+        <GlassDropdown
+          id="dep-bank"
+          label="Banco"
+          options={[
+            { value: "", label: "Selecione o banco" },
+            ...banks.map((b) => ({ value: b.id, label: b.name })),
+          ]}
+          value={form.bank_id}
+          onChange={(val) => setForm({ ...form, bank_id: val })}
+        />
 
         <GlassInput
           id="dep-amount"

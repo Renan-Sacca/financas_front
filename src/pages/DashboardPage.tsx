@@ -3,6 +3,7 @@ import { summaryApi, banksApi, categoriesApi, cardsApi } from "@/services/api";
 import type { FinancialSummary, Bank, Category, Card } from "@/types";
 import { useDashboardCache } from "@/hooks/useDashboardCache";
 import { useToast } from "@/components/Toast";
+import Dropdown from "@/components/Dropdown";
 import {
   BarChart,
   Bar,
@@ -44,8 +45,6 @@ function formatBRL(value: number) {
   });
 }
 
-const selectClass =
-  "bg-[#0d1b2a] border border-white/10 text-white text-sm rounded-lg px-3 py-2 focus:border-[#007bff] outline-none w-full";
 const inputClass =
   "bg-[#0d1b2a] border border-white/10 text-white text-sm rounded-lg px-3 py-2 w-full focus:border-[#007bff] outline-none";
 
@@ -321,26 +320,33 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-4 mb-6 items-end">
           <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
             <label className="block text-xs text-gray-400 mb-1">Banco</label>
-            <select value={monthlyBank} onChange={(e) => setMonthlyBank(e.target.value)} className={selectClass}>
-              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os bancos</option>
-              {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
-            </select>
+            <Dropdown
+              options={[{ value: "", label: "Todos os bancos" }, ...banks.map((b) => ({ value: b.id, label: b.name }))]}
+              value={monthlyBank}
+              onChange={setMonthlyBank}
+              placeholder="Todos os bancos"
+            />
           </div>
           <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
             <label className="block text-xs text-gray-400 mb-1">Cartão</label>
-            <select value={monthlyCard} onChange={(e) => setMonthlyCard(e.target.value)} className={selectClass}>
-              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os cartões</option>
-              {cards.filter(c => !monthlyBank || c.bank_id.toString() === monthlyBank).map((c) => (
-                <option key={c.id} value={c.id} style={{ background: "#0d1b2a", color: "white" }}>{c.name}</option>
-              ))}
-            </select>
+            <Dropdown
+              options={[
+                { value: "", label: "Todos os cartões" },
+                ...cards.filter(c => !monthlyBank || c.bank_id.toString() === monthlyBank).map((c) => ({ value: c.id, label: c.name }))
+              ]}
+              value={monthlyCard}
+              onChange={setMonthlyCard}
+              placeholder="Todos os cartões"
+            />
           </div>
           <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
             <label className="block text-xs text-gray-400 mb-1">Categoria</label>
-            <select value={monthlyCategory} onChange={(e) => setMonthlyCategory(e.target.value)} className={selectClass}>
-              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todas</option>
-              {categories.map((c) => <option key={c.id} value={c.id} style={{ background: "#0d1b2a", color: "white" }}>{c.name}</option>)}
-            </select>
+            <Dropdown
+              options={[{ value: "", label: "Todas" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]}
+              value={monthlyCategory}
+              onChange={setMonthlyCategory}
+              placeholder="Todas"
+            />
           </div>
           <div className="w-full sm:w-auto flex-1 md:flex-none min-w-[140px]">
             <label className="block text-xs text-gray-400 mb-1">Data Início</label>
@@ -410,10 +416,12 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs text-gray-400 mb-1">Banco</label>
-              <select value={cardPieBank} onChange={(e) => setCardPieBank(e.target.value)} className={selectClass}>
-                <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos</option>
-                {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
-              </select>
+              <Dropdown
+                options={[{ value: "", label: "Todos" }, ...banks.map((b) => ({ value: b.id, label: b.name }))]}
+                value={cardPieBank}
+                onChange={setCardPieBank}
+                placeholder="Todos"
+              />
             </div>
             <div className="col-span-1">
               <label className="block text-xs text-gray-400 mb-1">Data Início</label>
@@ -471,10 +479,12 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="col-span-2 sm:col-span-1">
               <label className="block text-xs text-gray-400 mb-1">Banco</label>
-              <select value={catPieBank} onChange={(e) => setCatPieBank(e.target.value)} className={selectClass}>
-                <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos</option>
-                {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
-              </select>
+              <Dropdown
+                options={[{ value: "", label: "Todos" }, ...banks.map((b) => ({ value: b.id, label: b.name }))]}
+                value={catPieBank}
+                onChange={setCatPieBank}
+                placeholder="Todos"
+              />
             </div>
             <div className="col-span-1">
               <label className="block text-xs text-gray-400 mb-1">Data Início</label>
@@ -533,10 +543,12 @@ export default function DashboardPage() {
         <div className="flex gap-4 mb-6 items-end">
           <div className="flex-1 max-w-[300px]">
             <label className="block text-xs text-gray-400 mb-1">Banco</label>
-            <select value={creditBank} onChange={(e) => setCreditBank(e.target.value)} className={selectClass}>
-              <option value="" style={{ background: "#0d1b2a", color: "white" }}>Todos os bancos</option>
-              {banks.map((b) => <option key={b.id} value={b.id} style={{ background: "#0d1b2a", color: "white" }}>{b.name}</option>)}
-            </select>
+            <Dropdown
+              options={[{ value: "", label: "Todos os bancos" }, ...banks.map((b) => ({ value: b.id, label: b.name }))]}
+              value={creditBank}
+              onChange={setCreditBank}
+              placeholder="Todos os bancos"
+            />
           </div>
           <div className="flex gap-2">
             <GlassButton size="sm" onClick={fetchCreditLimits}>Aplicar</GlassButton>
@@ -569,7 +581,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${pct > 80 ? "bg-gradient-to-r from-red-500 to-orange-500" : "bg-gradient-to-r from-[#007bff] to-cyan-400"}`}
+                      className={`h-full rounded-full transition-all duration-150 ${pct > 80 ? "bg-gradient-to-r from-red-500 to-orange-500" : "bg-gradient-to-r from-[#007bff] to-cyan-400"}`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -586,7 +598,7 @@ export default function DashboardPage() {
 function SummaryCard({ icon, label, value, gradient }: { icon: React.ReactNode; label: string; value: string; gradient: string }) {
   return (
     <div className="glass-panel glass-panel-hover rounded-2xl p-6 group">
-      <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+      <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center text-white mb-4 shadow-lg group-hover:scale-110 transition-transform duration-75`}>
         {icon}
       </div>
       <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">{label}</p>

@@ -124,7 +124,7 @@ export default function CategoriesPage() {
               className="glass-panel glass-panel-hover rounded-2xl p-5 group flex items-center gap-4"
             >
               <div
-                className="w-10 h-10 rounded-lg shrink-0 border border-white/10 group-hover:scale-110 transition-transform duration-500"
+                className="w-10 h-10 rounded-lg shrink-0 border border-white/10 group-hover:scale-110 transition-transform duration-75"
                 style={{ backgroundColor: cat.color }}
               />
               <div className="flex-1 min-w-0">
