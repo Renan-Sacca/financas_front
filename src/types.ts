@@ -90,3 +90,17 @@ export interface MonthlyExpense {
   year: number;
   total: number;
 }
+
+export interface RecurringPurchase {
+  id: number;
+  card_id: number;
+  card_name: string;
+  bank_name: string;
+  category_id?: number | null;
+  category_name?: string | null;
+  category_color?: string | null;
+  description: string;
+  amount: number;
+  day_of_month: number;
+  is_active: boolean;
+}

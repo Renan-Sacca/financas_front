@@ -3,8 +3,6 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard,
   Building2,
-  CreditCard,
-  Tag,
   Receipt,
   Wallet,
   UserCircle,
@@ -12,13 +10,12 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getNavbarOpacityClass } from "./navbarUtils";
 
 const navLinks = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/banks", label: "Bancos", icon: Building2 },
-  { to: "/cards", label: "Cartões", icon: CreditCard },
-  { to: "/categories", label: "Categorias", icon: Tag },
   { to: "/transactions", label: "Compras", icon: Receipt },
   { to: "/deposits", label: "Depósitos", icon: Wallet },
 ];
@@ -27,11 +24,34 @@ export default function GlassNavbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Detect page scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 0);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    // Check initial scroll position
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   return (
-    <nav className="fixed w-full z-[60] top-0 py-4 px-4">
+    <nav
+      className="fixed w-full z-[60] top-0 py-4 px-4"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <div className="max-w-7xl mx-auto">
-        <div className="glass-panel rounded-full px-6 py-3 flex items-center justify-between">
+        <div
+          className={`glass-panel rounded-full px-6 py-3 flex items-center justify-between transition-opacity duration-150 ${getNavbarOpacityClass(isScrolled, isHovered)}`}
+        >
           {/* Logo */}
           <Link to="/" className="group flex items-center gap-2">
             <span className="font-heading font-bold text-xl tracking-tighter text-white">

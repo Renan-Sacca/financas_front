@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { transactionsApi, cardsApi, banksApi, categoriesApi } from "@/services/api";
 import type { Transaction, Card, Bank, Category } from "@/types";
 import GlassButton from "@/components/GlassButton";
@@ -22,6 +23,8 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  Tag,
+  RefreshCw,
 } from "lucide-react";
 
 const formatBRL = (v: number) =>
@@ -44,6 +47,7 @@ const getCurrentMonthRange = () => {
 };
 
 export default function TransactionsPage() {
+  const navigate = useNavigate();
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
@@ -372,6 +376,14 @@ export default function TransactionsPage() {
             <CheckCheck className="w-4 h-4" />
             Pagar Anteriores
           </GlassButton>
+          <GlassButton variant="secondary" onClick={() => navigate("/recurring")}>
+            <RefreshCw className="w-4 h-4" />
+            Compra Recorrente
+          </GlassButton>
+          <GlassButton variant="secondary" onClick={() => navigate("/categories")}>
+            <Tag className="w-4 h-4" />
+            Categorias
+          </GlassButton>
           <GlassButton onClick={openCreate}>
             <Plus className="w-4 h-4" />
             Nova Compra
@@ -380,12 +392,12 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filters */}
-      <div className="glass-panel rounded-2xl p-4">
+      <div className="glass-panel rounded-2xl p-4 relative z-20" style={{ overflow: 'visible' }}>
         <div className="flex items-center gap-2 mb-4 text-xs text-gray-400 uppercase tracking-widest">
           <Filter className="w-3.5 h-3.5" />
           Filtros
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <input
             type="date"
             value={filterDateFrom}
@@ -417,15 +429,6 @@ export default function TransactionsPage() {
             value={filterStatus}
             onChange={setFilterStatus}
             placeholder="Todos os status"
-          />
-          <Dropdown
-            options={[
-              { value: "10", label: "10 por página" },
-              { value: "20", label: "20 por página" },
-              { value: "30", label: "30 por página" },
-            ]}
-            value={String(perPage)}
-            onChange={(val) => { setPerPage(Number(val)); setPage(1); }}
           />
           <GlassButton size="sm" onClick={applyFilters}>
             Aplicar
@@ -621,27 +624,76 @@ export default function TransactionsPage() {
           </div>
           
           {/* Pagination */}
-          <div className="flex items-center justify-between p-4 border-t border-white/10">
-            <span className="text-sm text-gray-400">
-              Mostrando {transactions.length} de {totalItems} registros
-            </span>
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-4 border-t border-white/10 flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-400">
+                Mostrando {transactions.length} de {totalItems} registros
+              </span>
+              <div className="flex items-center gap-1">
+                {[10, 20, 30].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => { setPerPage(n); setPage(1); }}
+                    className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                      perPage === n
+                        ? "bg-[#007bff] text-white"
+                        : "bg-white/5 text-white/70 hover:bg-white/10"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                «
+              </button>
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-sm text-white/70 px-3">
-                Página {page} de {totalPages}
-              </span>
+              {(() => {
+                const pages: number[] = [];
+                const start = Math.max(1, page - 3);
+                const end = Math.min(totalPages, page + 3);
+                for (let i = start; i <= end; i++) {
+                  pages.push(i);
+                }
+                return pages.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-8 h-8 text-xs rounded-lg transition-colors ${
+                      p === page
+                        ? "bg-[#007bff] text-white"
+                        : "bg-white/5 text-white/70 hover:bg-white/10"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ));
+              })()}
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                »
               </button>
             </div>
           </div>

@@ -16,6 +16,8 @@ import CategoriesPage from "@/pages/CategoriesPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import DepositsPage from "@/pages/DepositsPage";
 import ProfilePage from "@/pages/ProfilePage";
+import BankEditPage from "@/pages/BankEditPage";
+import RecurringPage from "@/pages/RecurringPage";
 
 function ProtectedLayout() {
   const { isAuthenticated, loading } = useAuth();
@@ -96,9 +98,11 @@ function AppRoutes() {
       <Route element={<ProtectedLayout />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/banks" element={<BanksPage />} />
+        <Route path="/banks/:id/edit" element={<BankEditPage />} />
         <Route path="/cards" element={<CardsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
+        <Route path="/recurring" element={<RecurringPage />} />
         <Route path="/deposits" element={<DepositsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

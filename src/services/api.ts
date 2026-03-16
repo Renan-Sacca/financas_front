@@ -82,6 +82,9 @@ export const banksApi = {
   list: () =>
     fetchApi<import("@/types").Bank[]>("/banks"),
 
+  get: (id: number) =>
+    fetchApi<import("@/types").Bank>(`/banks/${id}`),
+
   create: (data: { name: string; current_balance: number }) =>
     fetchApi<import("@/types").Bank>("/banks", {
       method: "POST",
@@ -102,6 +105,9 @@ export const banksApi = {
 export const cardsApi = {
   list: () =>
     fetchApi<import("@/types").Card[]>("/cards"),
+
+  listByBank: (bankId: number) =>
+    fetchApi<import("@/types").Card[]>(`/cards?bank_id=${bankId}`),
 
   create: (
     bankId: number,
@@ -306,4 +312,53 @@ export const summaryApi = {
       `/summary/credit-limits${query}`
     );
   },
+};
+
+// ──── RECURRING ────
+export const recurringApi = {
+  list: () =>
+    fetchApi<import("@/types").RecurringPurchase[]>("/recurring"),
+
+  create: (data: {
+    card_id: number;
+    category_id?: number | null;
+    description: string;
+    amount: number;
+    day_of_month: number;
+  }) =>
+    fetchApi<import("@/types").RecurringPurchase>("/recurring", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: number,
+    data: {
+      card_id?: number;
+      category_id?: number | null;
+      description?: string;
+      amount?: number;
+      day_of_month?: number;
+      is_active?: boolean;
+    }
+  ) =>
+    fetchApi<import("@/types").RecurringPurchase>(`/recurring/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/recurring/${id}`, { method: "DELETE" }),
+
+  insert: (id: number) =>
+    fetchApi<{ message: string; transaction_date: string }>(
+      `/recurring/${id}/insert`,
+      { method: "POST" }
+    ),
+
+  insertAll: () =>
+    fetchApi<{ message: string; count: number }>(
+      `/recurring/insert-all`,
+      { method: "POST" }
+    ),
 };

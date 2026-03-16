@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { banksApi } from "@/services/api";
 import type { Bank } from "@/types";
 import GlassButton from "@/components/GlassButton";
@@ -7,13 +8,12 @@ import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
-import { Building2, Plus, Pencil, Trash2, DollarSign } from "lucide-react";
+import { Building2, Plus, Trash2, DollarSign } from "lucide-react";
 
 export default function BanksPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Bank | null>(null);
   const [name, setName] = useState("");
   const [balance, setBalance] = useState("");
   const [saving, setSaving] = useState(false);
@@ -23,6 +23,7 @@ export default function BanksPage() {
 
   const { showSuccess, showError } = useToast();
   const invalidateDashboard = useInvalidateDashboard();
+  const navigate = useNavigate();
 
   const load = async () => {
     try {
@@ -40,30 +41,21 @@ export default function BanksPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openCreate = () => {
-    setEditing(null);
     setName("");
     setBalance("0");
     setModalOpen(true);
   };
 
-  const openEdit = (bank: Bank) => {
-    setEditing(bank);
-    setName(bank.name);
-    setBalance(String(bank.current_balance));
-    setModalOpen(true);
+  const handleBankClick = (bankId: number) => {
+    navigate(`/banks/${bankId}/edit`);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
       const data = { name, current_balance: parseFloat(balance) || 0 };
-      if (editing) {
-        await banksApi.update(editing.id, data);
-        showSuccess("Banco atualizado!");
-      } else {
-        await banksApi.create(data);
-        showSuccess("Banco criado!");
-      }
+      await banksApi.create(data);
+      showSuccess("Banco criado!");
       setModalOpen(false);
       invalidateDashboard();
       load();
@@ -126,7 +118,8 @@ export default function BanksPage() {
           {banks.map((bank) => (
             <div
               key={bank.id}
-              className="glass-panel glass-panel-hover rounded-2xl p-6 group"
+              className="glass-panel glass-panel-hover rounded-2xl p-6 group cursor-pointer"
+              onClick={() => handleBankClick(bank.id)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-gradient-to-br from-[#007bff] to-blue-400 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-75">
@@ -134,13 +127,10 @@ export default function BanksPage() {
                 </div>
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => openEdit(bank)}
-                    className="p-2 text-white/40 hover:text-[#007bff] transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(bank.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(bank.id);
+                    }}
                     className="p-2 text-white/40 hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -163,7 +153,7 @@ export default function BanksPage() {
 
       {/* Modal */}
       <GlassModal
-        title={editing ? "Editar Banco" : "Novo Banco"}
+        title="Novo Banco"
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         footer={
