@@ -254,30 +254,63 @@ export const depositsApi = {
   create: (data: {
     bank_id: number;
     amount: number;
-    description: string;
+    description?: string;
+    type_id: number;
+    payment_method_id: number;
+    income_category_id?: number | null;
+    income_category_name?: string | null;
     date: string;
+    add_to_balance?: boolean;
   }) =>
     fetchApi<import("@/types").Deposit>("/deposits", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
-  update: (
-    id: number,
-    data: {
-      bank_id: number;
-      amount: number;
-      description: string;
-      date: string;
-    },
-  ) =>
+  delete: (id: number) =>
+    fetchApi<void>(`/deposits/${id}`, { method: "DELETE" }),
+
+  update: (id: number, data: {
+    bank_id?: number;
+    amount?: number;
+    description?: string;
+    type_id?: number;
+    payment_method_id?: number;
+    income_category_id?: number | null;
+    date?: string;
+    adjust_balance?: boolean;
+  }) =>
     fetchApi<import("@/types").Deposit>(`/deposits/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  delete: (id: number) =>
-    fetchApi<void>(`/deposits/${id}`, { method: "DELETE" }),
+  // Income Types
+  listIncomeTypes: () =>
+    fetchApi<import("@/types").IncomeType[]>("/deposits/income-types"),
+
+  // Payment Methods
+  listPaymentMethods: () =>
+    fetchApi<import("@/types").PaymentMethod[]>("/deposits/payment-methods"),
+
+  // Income Categories
+  listIncomeCategories: () =>
+    fetchApi<import("@/types").IncomeCategory[]>("/deposits/income-categories"),
+
+  createIncomeCategory: (data: { name: string; color?: string }) =>
+    fetchApi<import("@/types").IncomeCategory>("/deposits/income-categories", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateIncomeCategory: (id: number, data: { name: string; color?: string }) =>
+    fetchApi<import("@/types").IncomeCategory>(`/deposits/income-categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteIncomeCategory: (id: number) =>
+    fetchApi<void>(`/deposits/income-categories/${id}`, { method: "DELETE" }),
 };
 
 // ──── SUMMARY ────

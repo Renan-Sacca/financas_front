@@ -21,7 +21,9 @@ export default function GlassDropdown({
   className = "",
 }: GlassDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -33,6 +35,15 @@ export default function GlassDropdown({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUp(spaceBelow < 260);
+    }
+    setOpen(!open);
+  };
+
   const selected = options.find((o) => String(o.value) === String(value));
   const hasValue = !!selected;
 
@@ -40,8 +51,9 @@ export default function GlassDropdown({
     <div ref={ref} className={`glass-input-group ${className}`}>
       <button
         type="button"
+        ref={btnRef}
         id={id}
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className="w-full flex items-center justify-between cursor-pointer"
         style={{
           padding: "40px 16px 12px",
@@ -73,16 +85,17 @@ export default function GlassDropdown({
         <div
           style={{
             position: "absolute",
-            top: "100%",
+            ...(openUp
+              ? { bottom: "100%", marginBottom: "4px" }
+              : { top: "100%", marginTop: "4px" }),
             left: 0,
             right: 0,
-            marginTop: "4px",
             background: "#0d1b2a",
             border: "1px solid rgba(255, 255, 255, 0.1)",
             borderRadius: "8px",
             boxShadow: "0 10px 40px rgba(0, 0, 0, 0.5)",
             zIndex: 50,
-            maxHeight: "240px",
+            maxHeight: "200px",
             overflowY: "auto",
           }}
         >

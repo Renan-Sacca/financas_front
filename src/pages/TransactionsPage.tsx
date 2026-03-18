@@ -385,15 +385,15 @@ export default function TransactionsPage() {
           <p className="text-gray-400 mt-1">Gerencie suas transações</p>
         </div>
         <div className="flex gap-3">
-          <GlassButton variant="secondary" size="sm" onClick={markPreviousAsPaid}>
+          <GlassButton variant="secondary" size="sm" onClick={markPreviousAsPaid} className="!text-white">
             <CheckCheck className="w-4 h-4" />
             Pagar Anteriores
           </GlassButton>
-          <GlassButton variant="secondary" onClick={() => navigate("/recurring")}>
+          <GlassButton variant="secondary" onClick={() => navigate("/recurring")} className="!text-white">
             <RefreshCw className="w-4 h-4" />
             Compra Recorrente
           </GlassButton>
-          <GlassButton variant="secondary" onClick={() => navigate("/categories")}>
+          <GlassButton variant="secondary" onClick={() => navigate("/categories")} className="!text-white">
             <Tag className="w-4 h-4" />
             Categorias
           </GlassButton>
@@ -405,12 +405,12 @@ export default function TransactionsPage() {
       </div>
 
       {/* Filters */}
-      <div className="glass-panel rounded-2xl p-4 relative z-20" style={{ overflow: 'visible' }}>
+      <div className="glass-panel overflow-visible rounded-2xl p-4 relative z-20">
         <div className="flex items-center gap-2 mb-4 text-xs text-gray-400 uppercase tracking-widest">
           <Filter className="w-3.5 h-3.5" />
           Filtros
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 relative z-30">
           <input
             type="date"
             value={filterDateFrom}
@@ -446,7 +446,7 @@ export default function TransactionsPage() {
           <GlassButton size="sm" onClick={applyFilters}>
             Aplicar
           </GlassButton>
-          <GlassButton size="sm" variant="secondary" onClick={clearFilters}>
+          <GlassButton size="sm" variant="secondary" onClick={clearFilters} className="!text-white">
             Limpar
           </GlassButton>
         </div>
@@ -458,25 +458,26 @@ export default function TransactionsPage() {
           <span className="text-sm text-white/70">
             {selected.size} transações selecionadas
           </span>
-          <div className="flex gap-2">
-            <GlassButton size="sm" onClick={() => bulkUpdateStatus(true)}>
-              Marcar Pagas
-            </GlassButton>
-            <GlassButton
-              size="sm"
-              variant="secondary"
-              onClick={() => bulkUpdateStatus(false)}
-            >
-              Marcar Pendentes
-            </GlassButton>
-            <GlassButton
-              size="sm"
-              variant="ghost"
-              onClick={() => setSelected(new Set())}
-            >
-              Limpar
-            </GlassButton>
-          </div>
+        <div className="flex gap-2">
+          <GlassButton size="sm" onClick={() => bulkUpdateStatus(true)}>
+            Marcar Pagas
+          </GlassButton>
+          <GlassButton
+            size="sm"
+            variant="secondary"
+            onClick={() => bulkUpdateStatus(false)}
+            className="!text-white"
+          >
+            Marcar Pendentes
+          </GlassButton>
+          <GlassButton
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+          >
+            Limpar
+          </GlassButton>
+        </div>
         </div>
       )}
 
@@ -650,7 +651,7 @@ export default function TransactionsPage() {
                     className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                       perPage === n
                         ? "bg-[#007bff] text-white"
-                        : "bg-white/5 text-white/70 hover:bg-white/10"
+                        : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {n}
@@ -662,14 +663,14 @@ export default function TransactionsPage() {
               <button
                 onClick={() => setPage(1)}
                 disabled={page === 1}
-                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 «
               </button>
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -687,7 +688,7 @@ export default function TransactionsPage() {
                     className={`w-8 h-8 text-xs rounded-lg transition-colors ${
                       p === page
                         ? "bg-[#007bff] text-white"
-                        : "bg-white/5 text-white/70 hover:bg-white/10"
+                        : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     {p}
@@ -697,14 +698,14 @@ export default function TransactionsPage() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setPage(totalPages)}
                 disabled={page === totalPages}
-                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-white/70 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 »
               </button>

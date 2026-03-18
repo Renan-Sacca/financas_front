@@ -167,7 +167,7 @@ export default function RecurringPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <GlassButton variant="secondary" onClick={handleInsertAll} loading={insertingAll}>
+          <GlassButton variant="secondary" onClick={handleInsertAll} loading={insertingAll} className="!text-white">
             <PlayCircle className="w-4 h-4" />
             Inserir Todas
           </GlassButton>

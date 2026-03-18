@@ -21,12 +21,12 @@ export default function GlassModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="glass-modal rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        className="glass-modal rounded-2xl w-full max-w-lg mx-4 max-h-[75vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h3 className="font-heading text-xl font-medium text-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
+          <h3 className="font-heading text-lg font-medium text-white">
             {title}
           </h3>
           <button
@@ -38,11 +38,11 @@ export default function GlassModal({
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-4">{children}</div>
+        <div className="px-6 py-4 space-y-3 overflow-y-auto flex-1 min-h-0">{children}</div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-white/10">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 shrink-0">
             {footer}
           </div>
         )}

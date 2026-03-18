@@ -1,19 +1,41 @@
 import { useEffect, useState } from "react";
-import { categoriesApi } from "@/services/api";
-import type { Category } from "@/types";
+import { useSearchParams } from "react-router-dom";
+import { categoriesApi, depositsApi } from "@/services/api";
+import type { Category, IncomeCategory } from "@/types";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GlassInput from "@/components/GlassInput";
 import { useToast } from "@/components/Toast";
 import { useInvalidateDashboard } from "@/hooks/useDashboardCache";
-import { Tag, Plus, Pencil, Trash2 } from "lucide-react";
+import { Tag, Plus, Pencil, Trash2, Wallet } from "lucide-react";
+
+type CatItem = { id: number; name: string; color: string };
+
+const modeConfig = {
+  expense: {
+    title: "Categorias de Gastos",
+    subtitle: "Organize seus gastos",
+    emptyText: "Nenhuma categoria de gastos cadastrada",
+    icon: Tag,
+  },
+  income: {
+    title: "Categorias de Entrada",
+    subtitle: "Organize suas entradas",
+    emptyText: "Nenhuma categoria de entrada cadastrada",
+    icon: Wallet,
+  },
+};
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const mode = searchParams.get("mode") === "income" ? "income" : "expense";
+  const config = modeConfig[mode];
+
+  const [categories, setCategories] = useState<CatItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Category | null>(null);
+  const [editing, setEditing] = useState<CatItem | null>(null);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#007bff");
   const [saving, setSaving] = useState(false);
@@ -25,8 +47,15 @@ export default function CategoriesPage() {
   const invalidateDashboard = useInvalidateDashboard();
 
   const load = async () => {
+    setLoading(true);
     try {
-      setCategories(await categoriesApi.list());
+      if (mode === "income") {
+        const data = await depositsApi.listIncomeCategories();
+        setCategories(data.map((c: IncomeCategory) => ({ id: c.id, name: c.name, color: c.color || "#007bff" })));
+      } else {
+        const data = await categoriesApi.list();
+        setCategories(data.map((c: Category) => ({ id: c.id, name: c.name, color: c.color })));
+      }
     } catch {
       showError("Erro ao carregar categorias");
     } finally {
@@ -36,7 +65,11 @@ export default function CategoriesPage() {
 
   useEffect(() => {
     load();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchMode = (m: "expense" | "income") => {
+    setSearchParams(m === "income" ? { mode: "income" } : {});
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -45,7 +78,7 @@ export default function CategoriesPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (cat: Category) => {
+  const openEdit = (cat: CatItem) => {
     setEditing(cat);
     setName(cat.name);
     setColor(cat.color);
@@ -55,12 +88,22 @@ export default function CategoriesPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (editing) {
-        await categoriesApi.update(editing.id, { name, color });
-        showSuccess("Categoria atualizada!");
+      if (mode === "income") {
+        if (editing) {
+          await depositsApi.updateIncomeCategory(editing.id, { name, color });
+          showSuccess("Categoria atualizada!");
+        } else {
+          await depositsApi.createIncomeCategory({ name, color });
+          showSuccess("Categoria criada!");
+        }
       } else {
-        await categoriesApi.create({ name, color });
-        showSuccess("Categoria criada!");
+        if (editing) {
+          await categoriesApi.update(editing.id, { name, color });
+          showSuccess("Categoria atualizada!");
+        } else {
+          await categoriesApi.create({ name, color });
+          showSuccess("Categoria criada!");
+        }
       }
       setModalOpen(false);
       invalidateDashboard();
@@ -72,15 +115,15 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = (id: number) => {
-    setDeleteConfirm(id);
-  };
-
   const executeDelete = async () => {
     if (!deleteConfirm) return;
     setDeleting(true);
     try {
-      await categoriesApi.delete(deleteConfirm);
+      if (mode === "income") {
+        await depositsApi.deleteIncomeCategory(deleteConfirm);
+      } else {
+        await categoriesApi.delete(deleteConfirm);
+      }
       showSuccess("Categoria excluída!");
       invalidateDashboard();
       load();
@@ -92,19 +135,51 @@ export default function CategoriesPage() {
     }
   };
 
+  const Icon = config.icon;
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-4xl font-semibold text-white tracking-tight">
-            Categorias
+            {config.title}
           </h1>
-          <p className="text-gray-400 mt-1">Organize seus gastos</p>
+          <p className="text-gray-400 mt-1">{config.subtitle}</p>
         </div>
         <GlassButton onClick={openCreate}>
           <Plus className="w-4 h-4" />
           Nova Categoria
         </GlassButton>
+      </div>
+
+      {/* Mode Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => switchMode("expense")}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-widest transition-all ${
+            mode === "expense"
+              ? "bg-[#007bff] text-white shadow-lg shadow-blue-900/40"
+              : "glass-panel text-white/50 hover:text-white"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5" />
+            Gastos
+          </span>
+        </button>
+        <button
+          onClick={() => switchMode("income")}
+          className={`px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-widest transition-all ${
+            mode === "income"
+              ? "bg-[#007bff] text-white shadow-lg shadow-blue-900/40"
+              : "glass-panel text-white/50 hover:text-white"
+          }`}
+        >
+          <span className="flex items-center gap-1.5">
+            <Wallet className="w-3.5 h-3.5" />
+            Entradas
+          </span>
+        </button>
       </div>
 
       {loading ? (
@@ -113,8 +188,8 @@ export default function CategoriesPage() {
         </div>
       ) : categories.length === 0 ? (
         <div className="glass-panel rounded-2xl p-12 text-center">
-          <Tag className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">Nenhuma categoria cadastrada</p>
+          <Icon className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-400">{config.emptyText}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -141,7 +216,7 @@ export default function CategoriesPage() {
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => handleDelete(cat.id)}
+                  onClick={() => setDeleteConfirm(cat.id)}
                   className="p-1.5 text-white/40 hover:text-red-400 transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />

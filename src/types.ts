@@ -53,11 +53,37 @@ export interface Transaction {
 
 export interface Deposit {
   id: number;
-  bank_id: number;
-  bank_name?: string;
+  user_id: number;
+  bank_id?: number | null;
+  bank_name?: string | null;
   amount: number;
-  description: string;
+  description?: string | null;
+  type_id: number;
+  type_name?: string | null;
+  payment_method_id: number;
+  payment_method_name?: string | null;
+  income_category_id?: number | null;
+  income_category_name?: string | null;
+  income_category_color?: string | null;
   date: string;
+  source?: string | null;
+}
+
+export interface IncomeType {
+  id: number;
+  name: string;
+}
+
+export interface PaymentMethod {
+  id: number;
+  name: string;
+}
+
+export interface IncomeCategory {
+  id: number;
+  user_id: number;
+  name: string;
+  color?: string | null;
 }
 
 export interface FinancialSummary {
