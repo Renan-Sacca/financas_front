@@ -4,6 +4,7 @@ import { ToastProvider } from "@/components/Toast";
 import { DashboardCacheProvider } from "@/hooks/useDashboardCache";
 import LiquidBackground from "@/components/LiquidBackground";
 import GlassNavbar from "@/components/GlassNavbar";
+import ChatWidget from "@/components/ChatWidget";
 
 // Pages
 import LoginPage from "@/pages/LoginPage";
@@ -42,6 +43,7 @@ function ProtectedLayout() {
       <main className="relative z-10 max-w-7xl mx-auto px-4 pt-28 pb-12">
         <Outlet />
       </main>
+      <ChatWidget />
     </div>
   );
 }
