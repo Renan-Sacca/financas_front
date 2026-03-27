@@ -21,6 +21,8 @@ import BankEditPage from "@/pages/BankEditPage";
 import RecurringPage from "@/pages/RecurringPage";
 import PendingBatchesPage from "@/pages/PendingBatchesPage";
 import PendingBatchPage from "@/pages/PendingBatchPage";
+import PendingBankBatchesPage from "@/pages/PendingBankBatchesPage";
+import PendingBankBatchPage from "@/pages/PendingBankBatchPage";
 
 function ProtectedLayout() {
   const { isAuthenticated, loading } = useAuth();
@@ -110,6 +112,8 @@ function AppRoutes() {
         <Route path="/deposits" element={<DepositsPage />} />
         <Route path="/pending" element={<PendingBatchesPage />} />
         <Route path="/pending/:batchId" element={<PendingBatchPage />} />
+        <Route path="/pending-bank" element={<PendingBankBatchesPage />} />
+        <Route path="/pending-bank/:batchId" element={<PendingBankBatchPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 

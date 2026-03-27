@@ -378,6 +378,34 @@ export const pendingApi = {
     }),
 };
 
+// ──── PENDING BANK STATEMENTS ────
+export const pendingBankApi = {
+  listBatches: () =>
+    fetchApi<import("@/types").BankBatchSummary[]>("/pending-bank/batches"),
+
+  listBatch: (batchId: string) =>
+    fetchApi<import("@/types").PendingBankItem[]>(`/pending-bank/batch/${batchId}`),
+
+  update: (id: number, data: Partial<import("@/types").PendingBankItem>) =>
+    fetchApi<import("@/types").PendingBankItem>(`/pending-bank/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  setStatus: (id: number, status: string) =>
+    fetchApi<{ id: number; status: string }>(`/pending-bank/${id}/status?status=${status}`, {
+      method: "PATCH",
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/pending-bank/${id}`, { method: "DELETE" }),
+
+  confirmBatch: (batchId: string) =>
+    fetchApi<{ message: string; created: number }>(`/pending-bank/batch/${batchId}/confirm`, {
+      method: "POST",
+    }),
+};
+
 // ──── RECURRING ────
 export const recurringApi = {
   list: () =>

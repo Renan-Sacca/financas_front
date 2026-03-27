@@ -231,8 +231,8 @@ export default function DepositsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-4xl font-semibold text-white tracking-tight">Depósitos</h1>
-          <p className="text-gray-400 mt-1">Registre suas entradas</p>
+          <h1 className="font-heading text-4xl font-semibold text-white tracking-tight">Transações Bancárias</h1>
+          <p className="text-gray-400 mt-1">Registre suas movimentações bancárias</p>
         </div>
         <div className="flex gap-2">
           <GlassButton variant="secondary" onClick={() => navigate("/categories?mode=income")} className="!text-white">
@@ -241,7 +241,7 @@ export default function DepositsPage() {
           </GlassButton>
           <GlassButton onClick={openCreate}>
             <Plus className="w-4 h-4" />
-            Novo Depósito
+            Nova Transação
           </GlassButton>
         </div>
       </div>
@@ -280,7 +280,7 @@ export default function DepositsPage() {
       ) : deposits.length === 0 ? (
         <div className="glass-panel rounded-2xl p-12 text-center">
           <Wallet className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">Nenhum depósito encontrado</p>
+          <p className="text-gray-400">Nenhuma transação bancária encontrada</p>
         </div>
       ) : (
         <div className="glass-panel rounded-2xl overflow-hidden">
@@ -314,7 +314,11 @@ export default function DepositsPage() {
                     </td>
                     <td className="p-4 text-sm text-white/80">{d.bank_name || "-"}</td>
                     <td className="p-4 text-sm text-white">{d.description || "-"}</td>
-                    <td className="p-4 text-sm text-right font-semibold text-emerald-400">+{formatBRL(d.amount)}</td>
+                    <td className="p-4 text-sm text-right font-semibold">
+                      <span className={d.amount >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        {d.amount >= 0 ? "+" : ""}{formatBRL(d.amount)}
+                      </span>
+                    </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">
                         <button onClick={() => openEdit(d)} title="Editar"
@@ -409,7 +413,7 @@ export default function DepositsPage() {
       )}
 
       {/* Create Deposit Modal */}
-      <GlassModal title={editing ? "Editar Depósito" : "Novo Depósito"} isOpen={modalOpen} onClose={() => setModalOpen(false)}
+      <GlassModal title={editing ? "Editar Transação" : "Nova Transação"} isOpen={modalOpen} onClose={() => setModalOpen(false)}
         footer={<>
           <GlassButton variant="secondary" onClick={() => setModalOpen(false)}>Cancelar</GlassButton>
           <GlassButton onClick={handleSave} loading={saving}>Salvar</GlassButton>
@@ -453,8 +457,8 @@ export default function DepositsPage() {
       </GlassModal>
 
       <ConfirmModal isOpen={deleteConfirm !== null} onClose={() => setDeleteConfirm(null)}
-        onConfirm={executeDelete} loading={deleting} title="Excluir Depósito"
-        message="Tem certeza que deseja excluir este depósito?" />
+        onConfirm={executeDelete} loading={deleting} title="Excluir Transação"
+        message="Tem certeza que deseja excluir esta transação?" />
 
       {/* Quick Create Category Modal */}
       <GlassModal title="Nova Categoria de Entrada" isOpen={newCatOpen} onClose={() => setNewCatOpen(false)}

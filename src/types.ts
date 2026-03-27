@@ -161,3 +161,32 @@ export interface BatchSummary {
   rejected: number;
   created_at: string;
 }
+
+export interface PendingBankItem {
+  id: number;
+  batch_id: string;
+  bank_id?: number | null;
+  bank_name?: string | null;
+  descricao: string;
+  valor: number;
+  data: string;
+  tipo?: string | null;
+  status: "pending" | "approved" | "rejected" | "confirmed";
+  category_id?: number | null;
+  category_name?: string | null;
+  filename?: string | null;
+  created_at: string;
+}
+
+export interface BankBatchSummary {
+  batch_id: string;
+  filename?: string | null;
+  bank_id?: number | null;
+  bank_name?: string | null;
+  total_items: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  confirmed: number;
+  created_at: string;
+}

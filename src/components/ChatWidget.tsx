@@ -301,15 +301,18 @@ export default function ChatWidget() {
         addMsg("De qual cartão é esta fatura?", "bot", { quickReplies: [...creditCards, ...BACK] });
         break;
       }
-      case "statement_bank":
-        setFlow({ block: "statement_bank", step: "upload", data: {} });
+      case "statement_bank": {
+        const stBanks = await fetchBanks();
+        if (stBanks.length === 0) {
+          addMsg("Nenhum banco cadastrado. Cadastre um banco primeiro.", "bot", { quickReplies: MAIN_MENU });
+          break;
+        }
+        setFlow({ block: "statement_bank", step: "pick_bank", data: {} });
         setInputEnabled(false);
-        setInputPlaceholder("Selecione o arquivo acima...");
-        addMsg("Envie o arquivo PDF ou CSV do extrato bancário.", "bot", {
-          quickReplies: BACK,
-          isUpload: true,
-        });
+        setInputPlaceholder("Selecione o banco...");
+        addMsg("De qual banco é este extrato?", "bot", { quickReplies: [...stBanks, ...BACK] });
         break;
+      }
       case "free":
         setFlow({ block: "free", step: "message", data: {} });
         setInputEnabled(true);
@@ -423,6 +426,16 @@ export default function ChatWidget() {
       setInputEnabled(false);
       setInputPlaceholder("Selecione o arquivo acima...");
       addMsg("Agora envie o arquivo PDF ou CSV da fatura.", "bot", { quickReplies: BACK, isUpload: true });
+      return;
+    }
+
+    // EXTRATO BANCO — pick de banco → vai para upload
+    if (flow.block === "statement_bank" && flow.step === "pick_bank" && value.startsWith("bank_id:")) {
+      const bankId = parseInt(value.split(":")[1]);
+      setFlow({ ...flow, step: "upload", data: { bank_id: bankId } });
+      setInputEnabled(false);
+      setInputPlaceholder("Selecione o arquivo acima...");
+      addMsg("Agora envie o arquivo PDF ou CSV do extrato bancário.", "bot", { quickReplies: BACK, isUpload: true });
       return;
     }
 
@@ -721,6 +734,10 @@ export default function ChatWidget() {
       // Para extrato de cartão, inclui o card_id selecionado no fluxo
       if (flow.block === "statement_card" && flow.data.card_id) {
         fd.append("card_id", String(flow.data.card_id));
+      }
+      // Para extrato de banco, inclui o bank_id selecionado no fluxo
+      if (flow.block === "statement_bank" && flow.data.bank_id) {
+        fd.append("bank_id", String(flow.data.bank_id));
       }
       const res = await fetch(`${API_URL}/chat/${endpoint}`, {
         method: "POST",

@@ -380,9 +380,9 @@ export default function TransactionsPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-heading text-4xl font-semibold text-white tracking-tight">
-            Compras
+            Transações com Cartão
           </h1>
-          <p className="text-gray-400 mt-1">Gerencie suas transações</p>
+          <p className="text-gray-400 mt-1">Gerencie suas transações com cartão</p>
         </div>
         <div className="flex gap-3">
           <GlassButton variant="secondary" size="sm" onClick={markPreviousAsPaid} className="!text-white">

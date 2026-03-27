@@ -19,8 +19,8 @@ import { getNavbarOpacityClass } from "./navbarUtils";
 const navLinks = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/banks", label: "Bancos", icon: Building2 },
-  { to: "/transactions", label: "Compras", icon: Receipt },
-  { to: "/deposits", label: "Depósitos", icon: Wallet },
+  { to: "/transactions", label: "Trans. Cartão", icon: Receipt },
+  { to: "/deposits", label: "Trans. Bancárias", icon: Wallet },
 ];
 
 export default function GlassNavbar() {
