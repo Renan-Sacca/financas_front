@@ -8,11 +8,12 @@ export default function GlassInput({
   label,
   id,
   className = "",
+  placeholder: _placeholder,
   ...props
 }: GlassInputProps) {
   return (
     <div className={`glass-input-group ${className}`}>
-      <input id={id} placeholder=" " {...props} />
+      <input id={id} {...props} placeholder=" " />
       <label htmlFor={id}>{label}</label>
     </div>
   );

@@ -201,7 +201,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 .glass-input-group label {
   position: absolute;
   left: 16px;
-  top: 30px; /* Posição fixa inicial, sem translateY */
+  top: 30px;
   color: rgba(255, 255, 255, 0.5);
   font-size: 1rem;
   pointer-events: none;
@@ -213,6 +213,15 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 .glass-input-group select:not(:placeholder-shown) + label,
 .glass-input-group textarea:focus + label,
 .glass-input-group textarea:not(:placeholder-shown) + label {
+  top: 10px;
+  font-size: 0.75rem;
+  color: #007bff;
+}
+
+/* Inputs que sempre mostram valor nativo (date, time, etc) — label sempre no topo */
+.glass-input-group input[type="date"] + label,
+.glass-input-group input[type="time"] + label,
+.glass-input-group input[type="datetime-local"] + label {
   top: 10px;
   font-size: 0.75rem;
   color: #007bff;

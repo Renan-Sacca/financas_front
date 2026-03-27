@@ -344,8 +344,8 @@ export default function PendingBatchPage() {
               }`}
             >
               <span className="text-xs font-medium uppercase tracking-wider">É compra parcelada?</span>
-              <div className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${editForm.criar_todas ? "bg-[#007bff]" : "bg-white/10"}`}>
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editForm.criar_todas ? "translate-x-4" : "translate-x-0.5"}`} />
+              <div className={`w-10 h-5 rounded-full transition-colors relative shrink-0 overflow-hidden ${editForm.criar_todas ? "bg-[#007bff]" : "bg-white/10"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${editForm.criar_todas ? "left-[22px]" : "left-0.5"}`} />
               </div>
             </button>
 
