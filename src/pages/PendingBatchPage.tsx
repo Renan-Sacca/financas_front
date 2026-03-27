@@ -48,7 +48,16 @@ export default function PendingBatchPage() {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [editItem, setEditItem] = useState<PendingItem | null>(null);
-  const [editForm, setEditForm] = useState({ descricao: "", valor: "", data_compra: "", category_id: "" });
+  const [editForm, setEditForm] = useState({
+    descricao: "",
+    valor: "",
+    data_compra: "",
+    category_id: "",
+    installment_number: "",
+    total_installments: "",
+    valor_tipo: "parcela" as "parcela" | "total",
+    criar_todas: false,
+  });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -90,11 +99,16 @@ export default function PendingBatchPage() {
 
   const openEdit = (item: PendingItem) => {
     setEditItem(item);
+    const isParcelado = !!(item.total_installments && item.total_installments > 1);
     setEditForm({
       descricao: item.descricao,
       valor: String(item.valor),
       data_compra: item.data_compra,
       category_id: String(item.category_id ?? ""),
+      installment_number: String(item.installment_number ?? ""),
+      total_installments: String(item.total_installments ?? ""),
+      valor_tipo: "parcela",
+      criar_todas: isParcelado,
     });
   };
 
@@ -102,11 +116,19 @@ export default function PendingBatchPage() {
     if (!editItem) return;
     setSaving(true);
     try {
+      const isParcelado = editForm.criar_todas;
+      const total = isParcelado ? (parseInt(editForm.total_installments) || 1) : 1;
+      const current = isParcelado ? (parseInt(editForm.installment_number) || 1) : 1;
+      const rawValor = parseFloat(editForm.valor);
+      const valorParcela = isParcelado && editForm.valor_tipo === "total" ? rawValor / total : rawValor;
+
       const updated = await pendingApi.update(editItem.id, {
         descricao: editForm.descricao,
-        valor: parseFloat(editForm.valor),
+        valor: valorParcela,
         data_compra: editForm.data_compra,
         category_id: editForm.category_id ? parseInt(editForm.category_id) : undefined,
+        installment_number: isParcelado && total > 1 ? current : undefined,
+        total_installments: isParcelado && total > 1 ? total : undefined,
       });
       setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
       setEditItem(null);
@@ -290,6 +312,7 @@ export default function PendingBatchPage() {
               value={editForm.descricao}
               onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))}
             />
+
             <GlassInput
               label="Valor (R$)"
               type="number"
@@ -297,12 +320,86 @@ export default function PendingBatchPage() {
               value={editForm.valor}
               onChange={e => setEditForm(f => ({ ...f, valor: e.target.value }))}
             />
+
             <GlassInput
-              label="Data"
+              label="Data da compra"
               type="date"
               value={editForm.data_compra}
               onChange={e => setEditForm(f => ({ ...f, data_compra: e.target.value }))}
             />
+
+            {/* Toggle: é parcelado? */}
+            <button
+              onClick={() => setEditForm(f => ({
+                ...f,
+                criar_todas: !f.criar_todas,
+                installment_number: !f.criar_todas ? f.installment_number : "",
+                total_installments: !f.criar_todas ? f.total_installments : "",
+                valor_tipo: "parcela",
+              }))}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors cursor-pointer ${
+                editForm.criar_todas
+                  ? "bg-[#007bff]/10 border-[#007bff]/40 text-white"
+                  : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:border-white/20"
+              }`}
+            >
+              <span className="text-xs font-medium uppercase tracking-wider">É compra parcelada?</span>
+              <div className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${editForm.criar_todas ? "bg-[#007bff]" : "bg-white/10"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${editForm.criar_todas ? "translate-x-4" : "translate-x-0.5"}`} />
+              </div>
+            </button>
+
+            {/* Campos de parcelamento — só aparecem se ativado */}
+            {editForm.criar_todas && (
+              <div className="space-y-3 pl-1 border-l-2 border-[#007bff]/30">
+                {/* Tipo de valor */}
+                <div className="flex gap-2">
+                  {(["parcela", "total"] as const).map(tipo => (
+                    <button
+                      key={tipo}
+                      onClick={() => setEditForm(f => ({ ...f, valor_tipo: tipo }))}
+                      className={`flex-1 py-2 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
+                        editForm.valor_tipo === tipo
+                          ? "bg-[#007bff]/20 border-[#007bff]/50 text-white"
+                          : "bg-white/5 border-white/10 text-white/40 hover:text-white"
+                      }`}
+                    >
+                      {tipo === "parcela" ? "Valor por parcela" : "Valor total"}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <GlassInput
+                    label="Parcela atual"
+                    type="number"
+                    min="1"
+                    value={editForm.installment_number}
+                    onChange={e => setEditForm(f => ({ ...f, installment_number: e.target.value }))}
+                    placeholder="ex: 3"
+                  />
+                  <GlassInput
+                    label="Total de parcelas"
+                    type="number"
+                    min="1"
+                    value={editForm.total_installments}
+                    onChange={e => setEditForm(f => ({ ...f, total_installments: e.target.value }))}
+                    placeholder="ex: 12"
+                  />
+                </div>
+
+                {/* Preview */}
+                {editForm.valor && parseInt(editForm.total_installments) > 1 && (
+                  <p className="text-xs text-white/40">
+                    {editForm.valor_tipo === "total"
+                      ? `≈ ${(parseFloat(editForm.valor) / parseInt(editForm.total_installments)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} por parcela`
+                      : `Total: ${(parseFloat(editForm.valor) * parseInt(editForm.total_installments)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`
+                    }
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wider">Categoria</label>
               <select
@@ -316,6 +413,7 @@ export default function PendingBatchPage() {
                 ))}
               </select>
             </div>
+
             <div className="flex gap-3 pt-2">
               <GlassButton variant="secondary" className="flex-1" onClick={() => setEditItem(null)}>
                 Cancelar

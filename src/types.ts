@@ -145,6 +145,8 @@ export interface PendingItem {
   category_id?: number | null;
   category_name?: string | null;
   filename?: string | null;
+  installment_number?: number | null;
+  total_installments?: number | null;
   created_at: string;
 }
 

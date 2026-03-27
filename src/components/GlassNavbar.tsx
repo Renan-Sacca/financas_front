@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard,
@@ -12,7 +13,7 @@ import {
   ClipboardList,
   ChevronDown,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getNavbarOpacityClass } from "./navbarUtils";
 
 const navLinks = [
@@ -29,6 +30,9 @@ export default function GlassNavbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+  const profileBtnRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 0);
@@ -39,6 +43,35 @@ export default function GlassNavbar() {
 
   // Fecha dropdown ao mudar de rota
   useEffect(() => { setProfileOpen(false); }, [location.pathname]);
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        profileBtnRef.current && !profileBtnRef.current.contains(e.target as Node)
+      ) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [profileOpen]);
+
+  // Calcula posição do dropdown quando abre
+  const toggleProfile = useCallback(() => {
+    setProfileOpen(prev => {
+      if (!prev && profileBtnRef.current) {
+        const rect = profileBtnRef.current.getBoundingClientRect();
+        setDropdownPos({
+          top: rect.bottom + 8,
+          right: window.innerWidth - rect.right,
+        });
+      }
+      return !prev;
+    });
+  }, []);
 
   const firstName = user?.full_name?.split(" ")[0] ?? "";
 
@@ -74,37 +107,18 @@ export default function GlassNavbar() {
             })}
           </div>
 
-          {/* Profile dropdown + Logout */}
+          {/* Profile button + Logout */}
           <div className="hidden lg:flex items-center gap-3">
             {user && (
-              <div
-                className="relative"
-                onMouseLeave={() => setProfileOpen(false)}
+              <button
+                ref={profileBtnRef}
+                onClick={toggleProfile}
+                className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors cursor-pointer"
               >
-                <button
-                  onClick={() => setProfileOpen(p => !p)}
-                  className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors cursor-pointer"
-                >
-                  <UserCircle className="w-4 h-4" />
-                  <span className="tracking-wider uppercase">{firstName}</span>
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
-                </button>
-
-                {profileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl py-1 shadow-xl border border-white/10 z-50">
-                    <Link to="/profile"
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/5 transition-colors">
-                      <UserCircle className="w-3.5 h-3.5" />
-                      Perfil
-                    </Link>
-                    <Link to="/pending"
-                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/5 transition-colors">
-                      <ClipboardList className="w-3.5 h-3.5" />
-                      Extratos Pendentes
-                    </Link>
-                  </div>
-                )}
-              </div>
+                <UserCircle className="w-4 h-4" />
+                <span className="tracking-wider uppercase">{firstName}</span>
+                <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
+              </button>
             )}
             <button onClick={logout}
               className="flex items-center gap-1.5 text-xs text-white/40 hover:text-red-400 transition-colors uppercase tracking-widest cursor-pointer">
@@ -152,6 +166,35 @@ export default function GlassNavbar() {
           </div>
         )}
       </div>
+
+      {/* Profile Dropdown - renderizado via Portal fora da navbar */}
+      {profileOpen && createPortal(
+        <div
+          ref={dropdownRef}
+          className="w-48 rounded-xl py-1 shadow-xl border border-white/10"
+          style={{
+            position: "fixed",
+            top: dropdownPos.top,
+            right: dropdownPos.right,
+            zIndex: 9999,
+            background: "rgba(15, 23, 42, 0.95)",
+            backdropFilter: "blur(32px) saturate(200%)",
+            WebkitBackdropFilter: "blur(32px) saturate(200%)",
+          }}
+        >
+          <Link to="/profile"
+            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+            <UserCircle className="w-3.5 h-3.5" />
+            Perfil
+          </Link>
+          <Link to="/pending"
+            className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+            <ClipboardList className="w-3.5 h-3.5" />
+            Extratos Pendentes
+          </Link>
+        </div>,
+        document.body
+      )}
     </nav>
   );
 }
