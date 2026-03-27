@@ -347,6 +347,37 @@ export const summaryApi = {
   },
 };
 
+// ──── PENDING STATEMENTS ────
+export const pendingApi = {
+  listAll: (status = "pending") =>
+    fetchApi<import("@/types").PendingItem[]>(`/pending?status=${status}`),
+
+  listBatch: (batchId: string) =>
+    fetchApi<import("@/types").PendingItem[]>(`/pending/batch/${batchId}`),
+
+  listBatches: () =>
+    fetchApi<import("@/types").BatchSummary[]>("/pending/batches"),
+
+  update: (id: number, data: Partial<import("@/types").PendingItem>) =>
+    fetchApi<import("@/types").PendingItem>(`/pending/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  setStatus: (id: number, status: string) =>
+    fetchApi<{ id: number; status: string }>(`/pending/${id}/status?status=${status}`, {
+      method: "PATCH",
+    }),
+
+  delete: (id: number) =>
+    fetchApi<void>(`/pending/${id}`, { method: "DELETE" }),
+
+  confirmBatch: (batchId: string) =>
+    fetchApi<{ message: string; created: number }>(`/pending/batch/${batchId}/confirm`, {
+      method: "POST",
+    }),
+};
+
 // ──── RECURRING ────
 export const recurringApi = {
   list: () =>

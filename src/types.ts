@@ -130,3 +130,32 @@ export interface RecurringPurchase {
   day_of_month: number;
   is_active: boolean;
 }
+
+export interface PendingItem {
+  id: number;
+  batch_id: string;
+  card_id: number;
+  card_name?: string | null;
+  bank_name?: string | null;
+  descricao: string;
+  valor: number;
+  data_compra: string;
+  tipo?: string | null;
+  status: "pending" | "approved" | "rejected" | "confirmed";
+  category_id?: number | null;
+  category_name?: string | null;
+  filename?: string | null;
+  created_at: string;
+}
+
+export interface BatchSummary {
+  batch_id: string;
+  filename?: string | null;
+  card_name?: string | null;
+  bank_name?: string | null;
+  total_items: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  created_at: string;
+}

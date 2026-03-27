@@ -9,6 +9,8 @@ import {
   LogOut,
   Menu,
   X,
+  ClipboardList,
+  ChevronDown,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { getNavbarOpacityClass } from "./navbarUtils";
@@ -26,21 +28,19 @@ export default function GlassNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
-  // Detect page scroll
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 0);
-    };
-
+    const handleScroll = () => setIsScrolled(window.scrollY > 0);
     window.addEventListener("scroll", handleScroll);
-    // Check initial scroll position
     handleScroll();
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Fecha dropdown ao mudar de rota
+  useEffect(() => { setProfileOpen(false); }, [location.pathname]);
+
+  const firstName = user?.full_name?.split(" ")[0] ?? "";
 
   return (
     <nav
@@ -54,9 +54,7 @@ export default function GlassNavbar() {
         >
           {/* Logo */}
           <Link to="/" className="group flex items-center gap-2">
-            <span className="font-heading font-bold text-xl tracking-tighter text-white">
-              FINANÇAS
-            </span>
+            <span className="font-heading font-bold text-xl tracking-tighter text-white">FINANÇAS</span>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#29C5F6] to-[#3a4b9f] flex items-center justify-center shadow-[0_4px_10px_rgba(41,197,246,0.3)] group-hover:scale-105 transition-transform duration-75">
               <Wallet className="w-4 h-4 text-white" strokeWidth={3} />
             </div>
@@ -67,15 +65,8 @@ export default function GlassNavbar() {
             {navLinks.map((link) => {
               const isActive = location.pathname === link.to;
               return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest transition-colors duration-75 ${
-                    isActive
-                      ? "text-white"
-                      : "text-white/50 hover:text-white"
-                  }`}
-                >
+                <Link key={link.to} to={link.to}
+                  className={`flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest transition-colors duration-75 ${isActive ? "text-white" : "text-white/50 hover:text-white"}`}>
                   <link.icon className="w-3.5 h-3.5" />
                   {link.label}
                 </Link>
@@ -83,33 +74,47 @@ export default function GlassNavbar() {
             })}
           </div>
 
-          {/* User + Logout */}
-          <div className="hidden lg:flex items-center gap-4">
+          {/* Profile dropdown + Logout */}
+          <div className="hidden lg:flex items-center gap-3">
             {user && (
-              <Link
-                to="/profile"
-                className="flex items-center gap-2 text-xs text-white/60 hover:text-white transition-colors"
+              <div
+                className="relative"
+                onMouseLeave={() => setProfileOpen(false)}
               >
-                <UserCircle className="w-4 h-4" />
-                <span className="tracking-wider uppercase">
-                  {user.full_name?.split(" ")[0]}
-                </span>
-              </Link>
+                <button
+                  onClick={() => setProfileOpen(p => !p)}
+                  className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors cursor-pointer"
+                >
+                  <UserCircle className="w-4 h-4" />
+                  <span className="tracking-wider uppercase">{firstName}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {profileOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 glass-panel rounded-xl py-1 shadow-xl border border-white/10 z-50">
+                    <Link to="/profile"
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+                      <UserCircle className="w-3.5 h-3.5" />
+                      Perfil
+                    </Link>
+                    <Link to="/pending"
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/5 transition-colors">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                      Extratos Pendentes
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-red-400 transition-colors uppercase tracking-widest"
-            >
+            <button onClick={logout}
+              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-red-400 transition-colors uppercase tracking-widest cursor-pointer">
               <LogOut className="w-3.5 h-3.5" />
               Sair
             </button>
           </div>
 
           {/* Mobile Toggle */}
-          <button
-            className="lg:hidden text-white"
-            onClick={() => setMobileOpen(!mobileOpen)}
-          >
+          <button className="lg:hidden text-white cursor-pointer" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
@@ -120,37 +125,26 @@ export default function GlassNavbar() {
             {navLinks.map((link) => {
               const isActive = location.pathname === link.to;
               return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                    isActive
-                      ? "bg-[#007bff]/20 text-white"
-                      : "text-white/60 hover:text-white hover:bg-white/5"
-                  }`}
-                >
+                <Link key={link.to} to={link.to} onClick={() => setMobileOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${isActive ? "bg-[#007bff]/20 text-white" : "text-white/60 hover:text-white hover:bg-white/5"}`}>
                   <link.icon className="w-4 h-4" />
                   {link.label}
                 </Link>
               );
             })}
-            <div className="border-t border-white/10 pt-2 mt-2 flex flex-col gap-2">
-              <Link
-                to="/profile"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all"
-              >
+            <div className="border-t border-white/10 pt-2 mt-2 flex flex-col gap-1">
+              <Link to="/profile" onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all">
                 <UserCircle className="w-4 h-4" />
                 Perfil
               </Link>
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  logout();
-                }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400/70 hover:text-red-400 hover:bg-white/5 transition-all"
-              >
+              <Link to="/pending" onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white hover:bg-white/5 transition-all">
+                <ClipboardList className="w-4 h-4" />
+                Extratos Pendentes
+              </Link>
+              <button onClick={() => { setMobileOpen(false); logout(); }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-red-400/70 hover:text-red-400 hover:bg-white/5 transition-all cursor-pointer">
                 <LogOut className="w-4 h-4" />
                 Sair
               </button>
