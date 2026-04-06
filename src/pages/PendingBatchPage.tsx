@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { pendingApi, categoriesApi } from "@/services/api";
-import type { PendingItem, Category } from "@/types";
+import { pendingApi, categoriesApi, cardsApi } from "@/services/api";
+import type { PendingItem, Category, Card } from "@/types";
 import { useToast } from "@/components/Toast";
 import GlassButton from "@/components/GlassButton";
 import GlassModal from "@/components/GlassModal";
@@ -45,6 +45,7 @@ export default function PendingBatchPage() {
 
   const [items, setItems] = useState<PendingItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [editItem, setEditItem] = useState<PendingItem | null>(null);
@@ -52,6 +53,7 @@ export default function PendingBatchPage() {
     descricao: "",
     valor: "",
     data_compra: "",
+    card_id: "",
     category_id: "",
     installment_number: "",
     total_installments: "",
@@ -63,12 +65,14 @@ export default function PendingBatchPage() {
   const load = async () => {
     if (!batchId) return;
     try {
-      const [its, cats] = await Promise.all([
+      const [its, cats, cds] = await Promise.all([
         pendingApi.listBatch(batchId),
         categoriesApi.list(),
+        cardsApi.list(),
       ]);
       setItems(its);
       setCategories(cats);
+      setCards(cds);
     } catch {
       // 404 é esperado se o lote não existe mais — não quebra a tela
     } finally {
@@ -104,6 +108,7 @@ export default function PendingBatchPage() {
       descricao: item.descricao,
       valor: String(item.valor),
       data_compra: item.data_compra,
+      card_id: String(item.card_id ?? ""),
       category_id: String(item.category_id ?? ""),
       installment_number: String(item.installment_number ?? ""),
       total_installments: String(item.total_installments ?? ""),
@@ -126,6 +131,7 @@ export default function PendingBatchPage() {
         descricao: editForm.descricao,
         valor: valorParcela,
         data_compra: editForm.data_compra,
+        card_id: editForm.card_id ? parseInt(editForm.card_id) : undefined,
         category_id: editForm.category_id ? parseInt(editForm.category_id) : undefined,
         installment_number: isParcelado && total > 1 ? current : undefined,
         total_installments: isParcelado && total > 1 ? total : undefined,
@@ -400,8 +406,23 @@ export default function PendingBatchPage() {
               </div>
             )}
 
-            <div>
-              <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wider">Categoria</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wider">Cartão</label>
+                <select
+                  value={editForm.card_id}
+                  onChange={e => setEditForm(f => ({ ...f, card_id: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-[#007bff]/50"
+                >
+                  <option value="">Selecione...</option>
+                  {cards.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs text-white/50 mb-1.5 uppercase tracking-wider">Categoria</label>
               <select
                 value={editForm.category_id}
                 onChange={e => setEditForm(f => ({ ...f, category_id: e.target.value }))}
@@ -412,6 +433,7 @@ export default function PendingBatchPage() {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-2">

@@ -482,9 +482,9 @@ export default function ChatWidget() {
   // ── processar input de texto ────────────────────────────────────────────────
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || !inputEnabled || loading) return;
+    if (!inputEnabled || loading) return;
     setInput("");
-    addMsg(text, "user");
+    addMsg(text || "[Em branco]", "user");
     await processTextInput(text);
   };
 
@@ -904,7 +904,7 @@ export default function ChatWidget() {
           />
           <button
             onClick={handleSend}
-            disabled={!inputEnabled || !input.trim() || loading}
+            disabled={!inputEnabled || loading}
             className="bg-[#007bff] hover:bg-[#007bff]/80 disabled:opacity-30 text-white rounded-xl px-3 py-2.5 transition-colors cursor-pointer disabled:cursor-not-allowed"
             aria-label="Enviar">
             <Send className="w-4 h-4" />
